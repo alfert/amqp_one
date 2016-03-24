@@ -1,6 +1,37 @@
 # AmpqOne
 
-**TODO: Add description**
+An attempt to implement an AMQP 1.0 compliant client. The OASIS standard document
+can be found in the spec folder.
+
+## Concepts from the Standard
+
+### Transport level
+
+Transport happens on behalf of TCP. AMQP defines messaging between nodes.
+
+* An AMPQ network has *nodes* connected via (unidirected) *links* (see below). Nodes live in
+  exactly one container (usually a client or broker app), a container holds
+  many nodes. There are 3 types of nodes: Producers, Consumers and Queues.
+* For transfers, a *connection* has to be opened between nodes. A connection
+  transfers an ordered sequence of *frames*. A connection is full-duplex, i.e.
+  communicates in both direction at the same time.
+* A connection is divided into a unidirected *channels*. Each frame denotes the
+  the channel it belongs to.
+* A *session* correlates to channels to a bi-directed sequential conversation
+  between two containers. Sessions provide a *flow-control schema* [how?].
+* A single connection may have many independent sessions active at the same
+  time, depending on the negotiated channel limit. Both, connections and
+  sessions, are modeled as *endpoints* by the peers, storing local and remote
+  state regarding the connection or session, respectively.
+* A *link* is required between two nodes in order to transfer messages between the
+  nodes. A link is unidiretional and connects at a node at a *terminus*. A terminus
+  is either a *source* or a *target* and is responsible for tracking the outgoing
+  or incoming stream of messages, respectively. A link provides a credit-based
+  flow-control (i.e. back-pressure). Links have names.
+* A session provides the context for communicatio between source and target. A
+  *link endpoint* associates a terminus with a *session endpoint*.
+
+These concepts are shown in the diagram: [Transport Concepts](transport.png)
 
 ## Installation
 
@@ -17,4 +48,3 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         def application do
           [applications: [:ampq_one]]
         end
-
