@@ -68,6 +68,12 @@ defmodule AmqpOne.Transport do
     |> Keyword.put(:packet, 0)
     {:ok, pid} = GenServer.start_link(__MODULE__, [host, port, [:binary | opts], socket_mod], [])
     GenServer.call(pid, {:connect})
+    #######
+    #
+    # TODO: Now the open frame should be sent to enable further communication
+    #
+    #####
+    pid
   end
 
   @spec close(conn_t) :: :ok
