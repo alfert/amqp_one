@@ -66,7 +66,7 @@ defmodule AmqpOne.Transport do
     opts = options
     |> Keyword.put(:active, false)
     |> Keyword.put(:packet, 0)
-    {:ok, pid} = GenServer.start_link(__MODULE__, [host, port, opts, socket_mod], [])
+    {:ok, pid} = GenServer.start_link(__MODULE__, [host, port, [:binary | opts], socket_mod], [])
     GenServer.call(pid, {:connect})
   end
 
@@ -122,7 +122,14 @@ defmodule AmqpOne.Transport do
     {:ok, state} = init([host, port, opts, transport])
     new_state = %__MODULE__{state | socket: socket}
     Logger.info "init(..,..,): state = #{inspect new_state}"
-    :gen_server.enter_loop(__MODULE__, [], new_state)
+    case transport.recv(socket, 8, 5_000) do
+      {:ok, @amqp_header} ->
+            :ok = transport.send(socket, @amqp_header)
+            :inet.setopts(socket, [active: :once, packet: 4])
+            :gen_server.enter_loop(__MODULE__, [], %__MODULE__{new_state| state: :hdr_exch})
+      _ -> transport.close(socket)
+    end
+
   end
 
   @doc false
@@ -131,9 +138,10 @@ defmodule AmqpOne.Transport do
     socket_mod = state.socket_mod
     {:ok, s} = socket_mod.connect(state.host, state.port, state.options)
     :ok = Socket.send(s, @amqp_header)
+    Logger.info "connect: sent the header, now receiving the header"
     {:ok, @amqp_header} = Socket.recv(s, 8)
     Socket.set_opts(s, [packet: 4, active: :once])
-    Logger.info "connect: send header"
+    Logger.info "connect: got header"
     {:reply, :ok, %__MODULE__{state | socket: s, state: :hdr_exch}}
   end
   def handle_call({:close}, _from, state) do
@@ -153,10 +161,10 @@ defmodule AmqpOne.Transport do
   end
 
   @spec connection(conn_state_t, binary | %Frame{}, t) :: t
-  def connection(:start, @amqp_header, state) do
+  def connection(:start, {tcp, @amqp_header}, state) do
     # this state is only relevant for being a server.
     # there is no attempt to deal with this situation for now.
-    AmqpOne.Transport.Socket.set_active_once(state.socket)
+    Socket.set_active_once(state.socket)
     put_in(state, :state, :hdr_rcvd)
   end
   def connection(:hdr_sent, %Frame{performative: :open} = f, state) do
@@ -169,7 +177,7 @@ defmodule AmqpOne.Transport do
     AmqpOne.Transport.Socket.set_active_once(state.socket)
     put_in state, :state, :hdr_exch
   end
-  def connection(:hdr_rcvd, header = @amqp_header, state) do
+  def connection(:hdr_rcvd, {:tcp, header = @amqp_header}, state) do
     # this is currently a server state, our connection functions does
     # not allow this situation. Not tested!
     :ok = AmqpOne.Transport.Socket.send(state.socket, header)
