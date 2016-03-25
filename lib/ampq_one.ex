@@ -1,4 +1,4 @@
-defmodule AmpqOne do
+defmodule AmqpOne do
   use Application
 
   # See http://elixir-lang.org/docs/stable/elixir/Application.html
@@ -6,14 +6,20 @@ defmodule AmpqOne do
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
+    ranch_listener = :ranch.child_spec(:amqp_one_server, 10,
+      :ranch_tcp, [port: 5672], AmqpOne.Transport, [])
+
     children = [
       # Define workers and child supervisors to be supervised
-      # worker(AmpqOne.Worker, [arg1, arg2, arg3]),
+      # worker(AmqpOne.Worker, [arg1, arg2, arg3]),
+      # ranch_sup,
+      ranch_listener
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: AmpqOne.Supervisor]
+    opts = [strategy: :one_for_one, name: AmqpOne.Supervisor]
     Supervisor.start_link(children, opts)
   end
+
 end

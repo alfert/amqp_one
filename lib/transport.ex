@@ -1,7 +1,9 @@
-defmodule AmpqOne.Transport do
+defmodule AmqpOne.Transport do
 
   @moduledoc """
-  Implements the transport layer of AMPQ.
+  Implements the transport layer of AMQP. For the server side,
+  we use Ranch as TCP connection pool. We follow the `gen_server`
+  example for Ranch's protocole (see http://ninenines.eu/docs/en/ranch/1.1/guide/protocols/).
 
   Open Issues:
   * encoding and decoding the frames properly
@@ -27,7 +29,7 @@ defmodule AmpqOne.Transport do
   defstruct host: "localhost",
     port: 5672,
     options: [],
-    socket_mod: TcpSocket,
+    socket_mod: AmqpOne.Transport.TcpSocket,
     socket: nil,
     state: :start
 
@@ -55,7 +57,10 @@ defmodule AmpqOne.Transport do
   """
   @spec open(:inet.ip_address | :inet.hostname, :inet.port_number,
     :gen_tcp.connect_option, atom) :: {:ok, conn_t} | {:error, any}
-  def open(host, port, options, socket_mod \\ TcpSocket) do
+  def open(host, port, options, socket_mod \\ AmqpOne.Transport.TCPSocket)
+  def open(host, port, options, socket_mod) when is_binary(host), do:
+    open(String.to_char_list(host), port, options, socket_mod)
+  def open(host, port, options, socket_mod) do
     # Options active and packet are set after the first received data
     opts = options
     |> Keyword.put(:active, :false)
@@ -111,9 +116,11 @@ defmodule AmpqOne.Transport do
   # handle all messages from the tcp layer
   @doc false
   def handle_info({:tcp, socket, data}, state) do
+    Logger.info "handle_info: at #{inspect state}"
     ^socket = state.socket
     new_state = connection(state.state, {:tcp, decode_frame(data)}, state)
-    Socket.set_active_once(state.socket)
+    Logger.info "handle_info: from #{state.state} to #{new_state.state}"
+    AmqpOne.Transport.Socket.set_active_once(state.socket)
     {:no_reply, new_state}
   end
 
@@ -121,29 +128,29 @@ defmodule AmpqOne.Transport do
   def connection(:start, @amqp_header, state) do
     # this state is only relevant for being a server.
     # there is no attempt to deal with this situation for now.
-    Socket.set_active_once(state.socket)
+    AmqpOne.Transport.Socket.set_active_once(state.socket)
     put_in(state, :state, :hdr_rcvd)
   end
   def connection(:hdr_sent, %Frame{performative: :open} = f, state) do
     # we are sending an open directly after the hdr: pipelining!
-    Socket.send(state.socket, encode_frame(f))
+    AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
     put_in state, :state, :open_pipe
   end
   def connection(:hdr_sent, @amqp_header, state) do
     # we are compatible with the server, nice!
-    Socket.set_active_once(state.socket)
+    AmqpOne.Transport.Socket.set_active_once(state.socket)
     put_in state, :state, :hdr_exch
   end
   def connection(:hdr_rcvd, header = @amqp_header, state) do
     # this is currently a server state, our connection functions does
     # not allow this situation. Not tested!
-    :ok = Socket.send(state.socket, header)
-    Socket.set_opts(state.socket, packet: 4)
-    Socket.set_active_once(state.socket)
+    :ok = AmqpOne.Transport.Socket.send(state.socket, header)
+    AmqpOne.Transport.Socket.set_opts(state.socket, packet: 4)
+    AmqpOne.Transport.Socket.set_active_once(state.socket)
     put_in state, :state, :hdr_exch
   end
   def connection(:hdr_exch, %Frame{performative: :open} = f, state) do
-    :ok = Socket.send(state.socket, encode_frame(f))
+    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
     put_in state, :state, :open_sent
   end
   def connection(:hdr_exch, {:tcp, %Frame{performative: :open} = f}, state) do
@@ -151,7 +158,7 @@ defmodule AmpqOne.Transport do
     put_in state, :state, :open_rcvd
   end
   def connection(:open_rcvd, %Frame{performative: :open} = f, state) do
-    :ok = Socket.send(state.socket, encode_frame(f))
+    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
     put_in state, :state, :opened
   end
   def connection(:open_sent, {:tcp, %Frame{performative: :open} = f}, state) do
@@ -176,11 +183,11 @@ defmodule AmpqOne.Transport do
     state
   end
   def connection(:close_sent, {:tcp, %Frame{performative: :close} = f}, state) do
-    Socket.close(state.socket)
+    AmqpOne.Transport.Socket.close(state.socket)
     put_in state, :state, :end
   end
   def connection(:close_rcvd, %Frame{performative: :close} = f, state) do
-    Socket.close(state.socket)
+    AmqpOne.Transport.Socket.close(state.socket)
     put_in state, :state, :end
   end
   def conncetion(:open_pipe, %Frame{performative: :close} = f, state) do
@@ -227,9 +234,7 @@ defmodule AmpqOne.Transport do
     for ports.
     """
     def connect(address, port, options) do
-      socket = :gen_tcp.connect(address, port, options)
-      :inet.setopts(socket, active: :once)
-      socket
+      :gen_tcp.connect(address, port, options)
     end
 
     defimpl Socket, for: Port do
