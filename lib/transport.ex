@@ -11,6 +11,7 @@ defmodule AmqpOne.Transport do
   """
   use GenServer
   require Logger
+  alias AmqpOne.Transport.Socket
 
   @type perf_t :: :open | :begin | :attach | :flow | :transfer |
   :disposition | :detch | :end | :close
@@ -63,7 +64,7 @@ defmodule AmqpOne.Transport do
   def open(host, port, options, socket_mod) do
     # Options active and packet are set after the first received data
     opts = options
-    |> Keyword.put(:active, :false)
+    |> Keyword.put(:active, false)
     |> Keyword.put(:packet, 0)
     {:ok, pid} = GenServer.start_link(__MODULE__, [host, port, opts, socket_mod], [])
     GenServer.call(pid, {:connect})
@@ -95,17 +96,44 @@ defmodule AmqpOne.Transport do
 
   @doc false
   def init([host, port, options, socket_mod]) do
-    {:ok, %__MODULE__{host: host, port: port, options: options,
-        socket_mod: socket_mod, state: :start}}
+    state = %__MODULE__{host: host, port: port, options: options,
+        socket_mod: socket_mod, state: :start}
+    Logger.info "init([..]): state = #{inspect state}"
+    {:ok, state}
+  end
+
+  @doc false
+  # start link for Ranch Listener
+  def start_link(ref, socket, transport, opts) do
+    options = opts
+    |> Keyword.put(:active, false)
+    |> Keyword.put(:packet, 0)
+    :proc_lib.start_link(__MODULE__, :init, [ref, socket, transport, options])
+  end
+
+  @doc false
+  # init for Ranch Listener
+  def init(ref, socket, transport, opts) do
+    :ok = :proc_lib.init_ack({:ok, self})
+    # Perform any required state initialization here.
+    :ok = :ranch.accept_ack(ref)
+    :ok = transport.setopts(socket, [active: false])
+    {:ok, {host, port}} = :inet.sockname(socket)
+    {:ok, state} = init([host, port, opts, transport])
+    new_state = %__MODULE__{state | socket: socket}
+    Logger.info "init(..,..,): state = #{inspect new_state}"
+    :gen_server.enter_loop(__MODULE__, [], new_state)
   end
 
   @doc false
   def handle_call({:connect}, _from, state = %__MODULE__{state: :start}) do
+    Logger.info "connect in state #{inspect state}"
     socket_mod = state.socket_mod
     {:ok, s} = socket_mod.connect(state.host, state.port, state.options)
     :ok = Socket.send(s, @amqp_header)
     {:ok, @amqp_header} = Socket.recv(s, 8)
     Socket.set_opts(s, [packet: 4, active: :once])
+    Logger.info "connect: send header"
     {:reply, :ok, %__MODULE__{state | socket: s, state: :hdr_exch}}
   end
   def handle_call({:close}, _from, state) do
