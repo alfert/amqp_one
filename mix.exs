@@ -24,7 +24,7 @@ defmodule AmqpOne.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :ranch, :sasl],
+    [applications: [:logger, :ranch, :sasl, :xmerl],
      mod: {AmqpOne, []}]
   end
   # Specifies which paths to compile per environment
