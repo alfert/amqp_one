@@ -24,14 +24,34 @@ Transport happens on behalf of TCP. AMQP defines messaging between nodes.
   sessions, are modeled as *endpoints* by the peers, storing local and remote
   state regarding the connection or session, respectively.
 * A *link* is required between two nodes in order to transfer messages between the
-  nodes. A link is unidiretional and connects at a node at a *terminus*. A terminus
+  nodes. A link is unidirectional and connects at a node at a *terminus*. A terminus
   is either a *source* or a *target* and is responsible for tracking the outgoing
   or incoming stream of messages, respectively. A link provides a credit-based
   flow-control (i.e. back-pressure). Links have names.
-* A session provides the context for communicatio between source and target. A
+* A session provides the context for communication between source and target. A
   *link endpoint* associates a terminus with a *session endpoint*.
 
 These concepts are shown in the diagram: [Transport Concepts](transport.png)
+
+## API Design
+
+This approach is modeled after AMQP.NET Lite (cf. https://dzone.com/refcardz/amqp-essentials)
+
+### Establishing a sender link
+
+    address = “amqp://admin:admin@192.168.1.103:5672”
+    {:ok, connection} = AmqpOne.connect(address)
+    {:ok, session} = AmqpOne.session(connection)
+    {:ok, sender} = AmqpOne.sender_link(session, "sender-link", "queue1")
+
+### Send a message
+Now we can send a message via the `sender` with properties, application
+specific properties and a timeout:
+
+    props = [message_id: 123]
+    app_props = %{"my-prop" => "cool system"}
+    AmpqOne.send("Hello AMQP-1", props, app_props, 5_000)
+
 
 ## Installation
 
