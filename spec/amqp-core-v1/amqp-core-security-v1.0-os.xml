@@ -1,0 +1,597 @@
+<?xml version="1.0"?>
+<!--
+  OASIS Advanced Message Queuing Protocol (AMQP) Version 1.0
+  Part 5: Security
+
+  OASIS Standard
+  29 October 2012
+    
+  Specification URIs:
+    
+    This version:
+        http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-security-v1.0-os.xml (Authoritative)
+        http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-security-v1.0-os.html
+        http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-complete-v1.0-os.pdf
+        
+    Previous version:
+        http://docs.oasis-open.org/amqp/core/v1.0/csprd01/amqp-core-security-v1.0-csprd01.xml (Authoritative)
+        http://docs.oasis-open.org/amqp/core/v1.0/csprd01/amqp-core-security-v1.0-csprd01.html
+        http://docs.oasis-open.org/amqp/core/v1.0/csprd01/amqp-core-complete-v1.0-csprd01.pdf
+
+    Latest version:
+        http://docs.oasis-open.org/amqp/core/v1.0/amqp-core-security-v1.0.xml (Authoritative)
+        http://docs.oasis-open.org/amqp/core/v1.0/amqp-core-security-v1.0.html
+        http://docs.oasis-open.org/amqp/core/v1.0/amqp-core-complete-v1.0.pdf
+        
+  Technical Committee:
+        OASIS Advanced Message Queuing Protocol (AMQP) TC (http://www.oasis-open.org/committees/amqp/)
+
+  Chairs:
+        Ram Jeyaraman (Ram.Jeyaraman@microsoft.com), Microsoft
+        Angus Telfer (angus.telfer@inetco.com), INETCO Systems
+
+  Editors:
+        Robert Godfrey (robert.godfrey@jpmorgan.com), JPMorgan Chase & Co.
+        David Ingham (David.Ingham@microsoft.com), Microsoft
+        Rafael Schloming (rafaels@redhat.com), Red Hat
+
+  Additional artifacts:
+        This specification consists of the following documents:
+        Part 0: Overview - Overview of the AMQP specification (amqp-core-overview-v1.0-os.xml)
+        Part 1: Types - AMQP type system and encoding (amqp-core-types-v1.0-os.xml)
+        Part 2: Transport - AMQP transport layer (amqp-core-transport-v1.0-os.xml)
+        Part 3: Messaging - AMQP Messaging Layer (amqp-core-messaging-v1.0-os.xml)
+        Part 4: Transactions - AMQP Transactions Layer (amqp-core-transactions-v1.0-os.xml)
+        Part 5: Security - AMQP Security Layers (this document)
+        XML Document Type Definition (DTD) (amqp.dtd)
+
+  Related work:
+        This specification replaces or supersedes:
+            AMQP v1.0 Final, 07 October 2001. http://www.amqp.org/specification/1.0/amqp-org-download
+  
+  Abstract:
+
+    The Advanced Message Queuing Protocol (AMQP) is an open internet protocol for business
+    messaging. It defines a binary wire-level protocol that allows for the reliable exchange
+    of business messages between two parties.
+    AMQP has a layered architecture and the specification is organized as a set of parts that
+    reflects that architecture. Part 1 defines the AMQP type system and encoding. Part 2 defines
+    the AMQP transport layer, an efficient, binary, peer-to-peer protocol for transporting messages
+    between two processes over a network. Part 3 defines the AMQP message format, with a
+    concrete encoding. Part 4 defines how interactions can be grouped within atomic
+    transactions. Part 5 defines the AMQP security layers.
+    
+  Status:
+    
+    This document was last revised or approved by the membership of OASIS on the above date. The level of
+    approval is also listed above. Check the "Latest version" location noted above for possible
+    later revisions of this document.
+
+    Technical Committee members should send comments on this specification to the Technical
+    Committee's email list. Others should send comments to the Technical Committee by using the
+    "Send A Comment" button on the Technical Committee's web page at
+    http://www.oasis-open.org/committees/amqp/.
+
+    For information on whether any patents have been disclosed that may be essential to implementing
+    this specification, and any offers of patent licensing terms, please refer to the Intellectual
+    Property Rights section of the Technical Committee web page
+    (http://www.oasis-open.org/committees/amqp/ipr.php).
+    
+  Citation format:
+    
+    When referencing this specification the following citation format should be used:
+    
+    [amqp-core-security-v1.0]
+    OASIS Advanced Message Queuing Protocol (AMQP) Version 1.0 Part 5: Security. 29 October 2012. OASIS Standard.
+    http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-security-v1.0-os.xml
+    
+  Notices:
+
+  Copyright (c) OASIS Open 2012. All Rights Reserved.
+
+
+  All capitalized terms in the following text have the meanings assigned to them in the OASIS
+  Intellectual Property Rights Policy (the "OASIS IPR Policy"). The full Policy may be found at the
+  OASIS website.
+
+
+  This document and translations of it may be copied and furnished to others, and derivative works
+  that comment on or otherwise explain it or assist in its implementation may be prepared, copied,
+  published, and distributed, in whole or in part, without restriction of any kind, provided that
+  the above copyright notice and this section are included on all such copies and derivative works.
+  However, this document itself may not be modified in any way, including by removing the copyright
+  notice or references to OASIS, except as needed for the purpose of developing any document or
+  deliverable produced by an OASIS Technical Committee (in which case the rules applicable to
+  copyrights, as set forth in the OASIS IPR Policy, must be followed) or as required to translate
+  it into languages other than English.
+
+
+  The limited permissions granted above are perpetual and will not be revoked by OASIS or its
+  successors or assigns.
+
+
+  This document and the information contained herein is provided on an "AS IS" basis and OASIS
+  DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE
+  USE OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY OWNERSHIP RIGHTS OR ANY IMPLIED WARRANTIES OF
+  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+  OASIS requests that any OASIS Party or any other party that believes it has patent claims that
+  would necessarily be infringed by implementations of this OASIS Committee Specification or OASIS
+  Standard, to notify OASIS TC Administrator and provide an indication of its willingness to grant
+  patent licenses to such patent claims in a manner consistent with the IPR Mode of the OASIS
+  Technical Committee that produced this specification.
+
+
+  OASIS invites any party to contact the OASIS TC Administrator if it is aware of a claim of
+  ownership of any patent claims that would necessarily be infringed by implementations of this
+  specification by a patent holder that is not willing to provide a license to such patent claims in
+  a manner consistent with the IPR Mode of the OASIS Technical Committee that produced this
+  specification. OASIS may include such claims on its website, but disclaims any obligation to do
+  so.
+
+
+  OASIS takes no position regarding the validity or scope of any intellectual property or other
+  rights that might be claimed to pertain to the implementation or use of the technology described
+  in this document or the extent to which any license under such rights might or might not be
+  available; neither does it represent that it has made any effort to identify any such rights.
+  Information on OASIS' procedures with respect to rights in any document or deliverable produced
+  by an OASIS Technical Committee can be found on the OASIS website. Copies of claims of rights
+  made available for publication and any assurances of licenses to be made available, or the result
+  of an attempt made to obtain a general license or permission for the use of such proprietary
+  rights by implementers or users of this OASIS Committee Specification or OASIS Standard, can be
+  obtained from the OASIS TC Administrator. OASIS makes no representation that any information or
+  list of intellectual property rights will at any time be complete, or that any claims in such list
+  are, in fact, Essential Claims.
+
+
+  The name "OASIS" is a trademark of OASIS, the owner and developer of this specification, and
+  should be used only to refer to the organization and its official outputs. OASIS welcomes
+  reference to, and implementation and use of, specifications, while reserving the right to enforce
+  its marks against misleading uses. Please see http://www.oasis-open.org/policies-guidelines/trademark for above guidance.
+
+     
+-->
+<amqp name="security" label="AMQP Security Layers">
+
+  <section name="security-layers" title="Security Layers" label="Security Layers">
+    <doc>
+      <p>
+        Security layers are used to establish an authenticated and/or encrypted transport over which
+        regular AMQP traffic can be tunneled. Security layers can be tunneled through one another
+        (for instance a security layer used by the peers to do authentication might be tunneled
+        through a security layer established for encryption purposes).
+      </p>
+
+      <p>
+        The framing and protocol definitions for security layers are expected to be defined
+        externally to the AMQP specification as in the case of TLS [<xref name="RFC5246">RFC5246</xref>]. An exception to this is the SASL [<xref name="RFC4422">RFC4422</xref>] security layer which depends on its host protocol to provide
+        framing. Therefore <xref name="sasl"/> defines the frames necessary for SASL to function.
+        When a security layer terminates (either before or after a secure tunnel is established),
+        the TCP connection MUST be closed by first shutting down the outgoing stream and then
+        reading the incoming stream until it is terminated.
+      </p>
+    </doc>
+  </section>
+
+  <section name="tls" title="TLS" label="TLS Security Layer">
+    <doc>
+      <p>
+        To establish a TLS session, each peer MUST start by sending a protocol header before
+        commencing with TLS negotiation. The protocol header consists of the upper case ASCII
+        letters "AMQP" followed by a protocol id of two, followed by three unsigned bytes
+        representing the major, minor, and revision of the specification version (currently <xref name="TLS-MAJOR"/>, <xref name="TLS-MINOR"/>, <xref name="TLS-REVISION"/>). In total this is
+        an 8-octet sequence:
+      </p>
+
+      <picture title="Protocol Header for TLS Security Layer">
+  4 OCTETS   1 OCTET   1 OCTET   1 OCTET   1 OCTET
++----------+---------+---------+---------+----------+
+|  "AMQP"  |   %d2   |  major  |  minor  | revision |
++----------+---------+---------+---------+----------+
+      </picture>
+
+      <p>
+        Other than using a protocol id of two, the exchange of TLS protocol headers follows the same
+        rules specified in the version negotiation section of the transport specification (See <xref type="section" name="version-negotiation"/>).
+      </p>
+    </doc>
+
+    <doc>
+      <p>
+        The following diagram illustrates the interaction involved in creating a TLS security layer:
+      </p>
+      <picture title="Establishing a TLS Security Layer">
+TCP Client                 TCP Server
+=========================================
+AMQP%d2.1.0.0  ---------&gt;
+               &lt;---------  AMQP%d2.1.0.0
+                    :
+                    :
+            &lt;TLS negotiation&gt;
+                    :
+                    :
+AMQP%d0.1.0.0  ---------&gt;                (over TLS secured connection)
+               &lt;---------  AMQP%d0.1.0.0
+         open  ---------&gt;
+               &lt;---------  open 
+      </picture>
+
+      <p>
+        When the use of the TLS security layer is negotiated, the following rules apply:
+      </p>
+
+      <ul>
+        <li>
+          <p>
+            The TLS client peer and TLS server peer are determined by the TCP client peer and TCP
+            server peer respectively.
+          </p>
+        </li>
+
+        <li>
+          <p>
+            The TLS client peer SHOULD use the server name indication extension as described in
+            RFC-4366 [<xref name="RFC4366">RFC4366</xref>]. If it does so, then it is undefined what
+            happens if this differs from hostname in the <xref type="type" name="sasl-init"/> and
+            <xref type="type" name="open"/> frame frames.
+          </p>
+          <p>
+            This field can be used by AMQP proxies to determine the correct back-end service to
+            connect the client to, and to determine the domain to validate the client's
+            credentials against if TLS client certificates are being used.
+          </p>
+        </li>
+
+        <li>
+          <p>
+            The TLS client MUST validate the certificate presented by the TLS server.
+          </p>
+        </li>
+
+        <li>
+          <p>
+            Implementations MAY choose to use TLS with unidirectional shutdown, i.e., an application
+            initiating shutdown using close_notify is not obliged to wait for the peer to respond,
+            and MAY close the write half of the TCP socket.
+          </p>
+        </li>
+      </ul>
+    </doc>
+
+    <doc name="tls-alternative-establishment" title="Alternative Establishment">
+      <p>
+        In certain situations, such as connecting through firewalls, it might not be possible to
+        establish a TLS security layer using the above procedure (for example, because a deep
+        packet inspecting firewall sees the first few bytes of the connection 'as not being TLS').
+      </p>
+
+      <p>
+        As an alternative, implementations MAY run a pure TLS server, i.e., one that does not expect
+        the initial TLS-invoking handshake. The IANA service name for this is amqps and the port is
+        <xref name="SECURE-PORT"/> (5671). Implementations MAY also choose to run this pure TLS
+        server on other ports, if this is operationally necessary (e.g., to tunnel through a
+        legacy firewall that only expects TLS traffic on port 443).
+       </p>
+    </doc>
+
+    <definition name="TLS-MAJOR" value="1" label="major protocol version"/>
+    <definition name="TLS-MINOR" value="0" label="minor protocol version"/>
+    <definition name="TLS-REVISION" value="0" label="protocol revision"/>
+
+  </section>
+
+  
+
+  <section name="sasl" title="SASL" label="SASL Security Layer">
+    <doc>
+      <p>
+        To establish a SASL layer, each peer MUST start by sending a protocol header. The protocol
+        header consists of the upper case ASCII letters "AMQP" followed by a protocol id of three,
+        followed by three unsigned bytes representing the major, minor, and revision of the
+        specification version (currently <xref name="SASL-MAJOR"/>, <xref name="SASL-MINOR"/>, <xref name="SASL-REVISION"/>). In total this is an 8-octet sequence:
+      </p>
+
+      <picture title="Protocol Header for SASL Security Layer">
+  4 OCTETS   1 OCTET   1 OCTET   1 OCTET   1 OCTET
++----------+---------+---------+---------+----------+
+|  "AMQP"  |   %d3   |  major  |  minor  | revision |
++----------+---------+---------+---------+----------+
+      </picture>
+
+      <p>
+        Other than using a protocol id of three, the exchange of SASL layer headers follows the same
+        rules specified in the version negotiation section of the transport specification (See <xref type="section" name="version-negotiation"/>).
+      </p>
+
+      <p>
+        The following diagram illustrates the interaction involved in creating a SASL security
+        layer:
+      </p>
+
+      <picture title="Establishing a SASL Security Layer">
+TCP Client                 TCP Server
+=========================================
+AMQP%d3.1.0.0  ---------&gt;
+               &lt;---------  AMQP%d3.1.0.0
+                    :
+                    :
+            &lt;SASL negotiation&gt;
+                    :
+                    :
+AMQP%d0.1.0.0  ---------&gt;                (over SASL secured connection)
+               &lt;---------  AMQP%d0.1.0.0
+         open  ---------&gt;
+               &lt;---------  open 
+      </picture>
+    </doc>
+
+    <doc title="SASL Frames">
+       <p>
+         SASL performatives are framed as per <xref type="section" name="framing"/>. A SASL frame
+         has a type code of 0x01. Bytes 6 and 7 of the header are ignored. Implementations SHOULD
+         set these to 0x00. The extended header is ignored. Implementations SHOULD therefore set
+         DOFF to 0x02.
+       </p>
+
+      <picture title="SASL Frame">
+              type: 0x01 - SASL frame
+
+           +0       +1       +2       +3
+       +-----------------------------------+ -.
+     0 |                SIZE               |  |
+       +-----------------------------------+  |---&gt; Frame Header
+     4 |  DOFF  |  TYPE  |   &lt;IGNORED&gt;*1   |  |      (8 bytes)
+       +-----------------------------------+ -'
+       +-----------------------------------+ -.
+     8 |                ...                |  |
+       .                                   .  |---&gt; Extended Header
+       .             &lt;IGNORED&gt;*2           .  |  (DOFF * 4 - 8) bytes
+       |                ...                |  |
+       +-----------------------------------+ -'
+       +-----------------------------------+ -.
+4*DOFF |                                   |  |
+       .                                   .  |
+       .                                   .  |
+       .    Sasl Mechanisms / Sasl Init    .  |
+       .   Sasl Challenge / Sasl Response  .  |---&gt; Frame Body
+       .           Sasl Outcome            .  |  (SIZE - DOFF * 4) bytes
+       .                                   .  |
+       .                                   .  |
+       .                           ________|  |
+       |                ...       |           |
+       +--------------------------+          -'
+
+        *1 SHOULD be set to 0x0000
+        *2 Ignored, so DOFF SHOULD be set to 0x02 
+      </picture>
+
+      <p>
+        The maximum size of a SASL frame is defined by <xref name="MIN-MAX-FRAME-SIZE"/>. There is
+        no mechanism within the SASL negotiation to negotiate a different size. The frame body of a
+        SASL frame MUST contain exactly one AMQP type, whose type encoding MUST have
+         provides="sasl-frame" . Receipt of an empty frame is an irrecoverable error.
+      </p>
+    </doc>
+
+    <doc title="SASL Negotiation">
+      <p>
+        The peer acting as the SASL server MUST announce supported authentication mechanisms using
+        the <xref name="sasl-mechanisms"/> frame. The partner MUST then choose one of the supported
+        mechanisms and initiate a sasl exchange.
+      </p>
+
+      <picture title="SASL Exchange">
+SASL Client       SASL Server
+================================
+              &lt;-- SASL-MECHANISMS
+SASL-INIT     --&gt;
+              ...
+              &lt;-- SASL-CHALLENGE *
+SASL-RESPONSE --&gt;
+              ...
+              &lt;-- SASL-OUTCOME
+--------------------------------
+  * Note that the SASL
+    challenge/response step can
+    occur zero or more times
+    depending on the details of
+    the SASL mechanism chosen.
+      </picture>
+
+      <p>
+        The peer playing the role of the SASL client and the peer playing the role of the SASL
+        server MUST correspond to the TCP client and server respectively.
+      </p>
+    </doc>
+
+    <doc title="Security Frame Bodies"/>
+
+    
+
+    <type class="composite" name="sasl-mechanisms" source="list" provides="sasl-frame" label="advertise available sasl mechanisms">
+      <doc>
+        <p>
+          Advertises the available SASL mechanisms that can be used for authentication.
+        </p>
+      </doc>
+
+      <descriptor name="amqp:sasl-mechanisms:list" code="0x00000000:0x00000040"/>
+
+      <field name="sasl-server-mechanisms" type="symbol" multiple="true" mandatory="true" label="supported sasl mechanisms">
+        <doc>
+          <p>
+            A list of the sasl security mechanisms supported by the sending peer. It is invalid
+            for this list to be null or empty. If the sending peer does not require its partner
+            to authenticate with it, then it SHOULD send a list of one element with its value as
+            the SASL mechanism <i>ANONYMOUS</i>. The server mechanisms are ordered in decreasing
+            level of preference.
+          </p>
+        </doc>
+      </field>
+    </type>
+
+    
+
+    <type class="composite" name="sasl-init" source="list" provides="sasl-frame" label="initiate sasl exchange">
+      <doc>
+        <p>Selects the sasl mechanism and provides the initial response if needed.</p>
+      </doc>
+
+      <descriptor name="amqp:sasl-init:list" code="0x00000000:0x00000041"/>
+
+      <field name="mechanism" type="symbol" label="selected security mechanism" mandatory="true">
+        <doc>
+          <p>
+            The name of the SASL mechanism used for the SASL exchange. If the selected mechanism is
+            not supported by the receiving peer, it MUST close the connection with the
+            authentication-failure close-code. Each peer MUST authenticate using the highest-level
+            security profile it can handle from the list provided by the partner.
+          </p>
+        </doc>
+      </field>
+
+      <field name="initial-response" type="binary" label="security response data">
+        <doc>
+          <p>
+            A block of opaque data passed to the security mechanism. The contents of this data are
+            defined by the SASL security mechanism.
+          </p>
+        </doc>
+      </field>
+
+      <field name="hostname" type="string" label="the name of the target host">
+        <doc>
+          <p>
+            The DNS name of the host (either fully qualified or relative) to which the sending peer
+            is connecting. It is not mandatory to provide the hostname. If no hostname is provided
+            the receiving peer SHOULD select a default based on its own configuration.
+          </p>
+
+          <p>
+            This field can be used by AMQP proxies to determine the correct back-end service to
+            connect the client to, and to determine the domain to validate the client's credentials
+            against.
+          </p>
+
+          <p>
+            This field might already have been specified by the server name indication extension as
+            described in RFC-4366 [<xref name="RFC4366">RFC4366</xref>], if a TLS layer is used, in
+            which case this field SHOULD either be null or contain the same value. It is undefined
+            what a different value to those already specified means.
+          </p>
+        </doc>
+      </field>
+    </type>
+
+    
+
+    <type class="composite" name="sasl-challenge" source="list" provides="sasl-frame" label="security mechanism challenge">
+      <doc>
+        <p>Send the SASL challenge data as defined by the SASL specification.</p>
+      </doc>
+
+      <descriptor name="amqp:sasl-challenge:list" code="0x00000000:0x00000042"/>
+
+      <field name="challenge" type="binary" label="security challenge data" mandatory="true">
+        <doc>
+          <p>
+            Challenge information, a block of opaque binary data passed to the security
+            mechanism.
+          </p>
+        </doc>
+      </field>
+    </type>
+
+    
+
+    <type class="composite" name="sasl-response" source="list" provides="sasl-frame" label="security mechanism response">
+      <doc>
+        <p>Send the SASL response data as defined by the SASL specification.</p>
+      </doc>
+
+      <descriptor name="amqp:sasl-response:list" code="0x00000000:0x00000043"/>
+
+      <field name="response" type="binary" label="security response data" mandatory="true">
+        <doc>
+          <p>
+            A block of opaque data passed to the security mechanism. The contents of this data are
+            defined by the SASL security mechanism.
+          </p>
+        </doc>
+      </field>
+    </type>
+
+    
+
+    <type class="composite" name="sasl-outcome" source="list" provides="sasl-frame" label="indicates the outcome of the sasl dialog">
+      <doc>
+        <p>
+          This frame indicates the outcome of the SASL dialog. Upon successful completion of the
+          SASL dialog the security layer has been established, and the peers MUST exchange protocol
+          headers to either start a nested security layer, or to establish the AMQP connection.
+        </p>
+      </doc>
+
+      <descriptor name="amqp:sasl-outcome:list" code="0x00000000:0x00000044"/>
+
+      <field name="code" type="sasl-code" mandatory="true" label="indicates the outcome of the sasl dialog">
+        <doc>
+          <p>A reply-code indicating the outcome of the SASL dialog.</p>
+        </doc>
+      </field>
+
+      <field name="additional-data" type="binary" label="additional data as specified in RFC-4422">
+        <doc>
+          <p>
+            The additional-data field carries additional data on successful authentication outcome
+            as specified by the SASL specification [<xref name="RFC4422">RFC4422</xref>].
+            If the authentication is unsuccessful, this field is not set.
+          </p>
+        </doc>
+      </field>
+    </type>
+
+    <type class="restricted" name="sasl-code" source="ubyte" label="codes to indicate the outcome of the sasl dialog">
+      <choice name="ok" value="0">
+        <doc>
+          <p>Connection authentication succeeded.</p>
+        </doc>
+      </choice>
+      <choice name="auth" value="1">
+        <doc>
+          <p>
+            Connection authentication failed due to an unspecified problem with the supplied
+            credentials.
+          </p>
+        </doc>
+      </choice>
+      <choice name="sys" value="2">
+        <doc>
+          <p>Connection authentication failed due to a system error.</p>
+        </doc>
+      </choice>
+      <choice name="sys-perm" value="3">
+        <doc>
+          <p>
+            Connection authentication failed due to a system error that is unlikely to be corrected
+            without intervention.
+          </p>
+        </doc>
+      </choice>
+      <choice name="sys-temp" value="4">
+        <doc>
+          <p>
+            Connection authentication failed due to a transient system error.
+          </p>
+        </doc>
+      </choice>
+    </type>
+
+    <definition name="SASL-MAJOR" value="1" label="major protocol version"/>
+    <definition name="SASL-MINOR" value="0" label="minor protocol version"/>
+    <definition name="SASL-REVISION" value="0" label="protocol revision"/>
+
+  </section>
+
+</amqp>

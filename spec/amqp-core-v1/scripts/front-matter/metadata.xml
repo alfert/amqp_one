@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<metadata>
+  <title>OASIS Advanced Message Queuing Protocol (AMQP)</title>
+  <document>amqp-core</document>
+  <version>1.0</version>
+  <status>OASIS Standard</status>
+  <date>29 October 2012</date>
+  <baseURL>http://docs.oasis-open.org/amqp/core</baseURL>
+  <docVersion>os</docVersion>
+  <committeeId>amqp</committeeId>
+  <prevDocVersion>csprd01</prevDocVersion>
+</metadata>
