@@ -41,13 +41,10 @@ defmodule AmqpOne.TypeManager do
       |> convert_xml
       |> Enum.map(fn({name, spec}) ->
         quote do
-          def type_spec(unquote(name)), do:
-            unquote(spec)
+          def type_spec(unquote(name)), do: unquote(Macro.escape(spec))
         end
       end)
     end
-
-    
 
     @doc "Takes the xmerl_scan results and produces a type spec"
     def convert_xml({type, _}), do:  convert_xml(type)
@@ -55,7 +52,8 @@ defmodule AmqpOne.TypeManager do
       xmlElement(type, :content)
       |> Enum.map(&convert_xml/1)
       |> collect_children
-      |> Enum.each(&({&1.name, &1}))
+      |> Map.fetch!(:type)
+      |> Stream.map(fn t = %Type{name: name} -> {name, t} end)
       |> Enum.into(%{})
     end
     def convert_xml(type) when is_record(type, :xmlElement) and xmlElement(type, :name) == :type do
@@ -83,8 +81,9 @@ defmodule AmqpOne.TypeManager do
 
     def convert_xml(enc) when is_record(enc, :xmlElement) and xmlElement(enc, :name) == :encoding do
       attrs = xmlElement(enc, :attributes) |> Enum.map(&convert_xml/1)
+      {width, _rest} = Integer.parse(attrs[:width])
       %Encoding{name: attrs[:name], label: attrs[:label], category: attrs[:category],
-        code: attrs[:code], width: attrs[:width]}
+        code: attrs[:code], width: width}
     end
     # catch all unknown elements
     def convert_xml(enc) when is_record(enc, :xmlElement), do: nil
@@ -113,6 +112,7 @@ defmodule AmqpOne.TypeManager do
     end
     def convert_xml(txt) when is_record(txt, :xmlText), do: nil
 
+    @spec collect_children([tuple]) :: Map.t(:type|:enc|:field|:choice|:desc, [tuple])
     def collect_children(children) do
       # effectively an ordered Enum.group_by
       children

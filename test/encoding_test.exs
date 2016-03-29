@@ -1,6 +1,7 @@
 defmodule AmqpOne.Test.Encoding do
   use ExUnit.Case
   require AmqpOne.TypeManager.XML
+  alias AmqpOne.TypeManager, as: TM
 
   test "null encoding" do
     null = AmqpOne.Encoding.encode(nil)
@@ -24,6 +25,25 @@ defmodule AmqpOne.Test.Encoding do
     book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
     Enum.zip(book.field, book_type.field) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
+  end
+
+  defmodule TypeSpec do
+    require AmqpOne.TypeManager.XML, as: X
+
+    X.typespec("""
+    <type class="primitive" name="null" label="indicates an empty value">
+      <encoding code="0x40" category="fixed" width="0" label="the null value"/>
+    </type>
+    """)
+  end
+
+  test "type spec generation" do
+    null_spec = TypeSpec.type_spec("null")
+    assert %TM.Type{} = null_spec
+    [enc] = null_spec.encoding
+    assert enc.category == :fixed
+    assert enc.width == 0
+    assert enc.code == "0x40"
   end
 
   def book_value do
