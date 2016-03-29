@@ -35,15 +35,32 @@ defmodule AmqpOne.Test.Encoding do
       <encoding code="0x40" category="fixed" width="0" label="the null value"/>
     </type>
     """)
+    # The type_spec function for book
+    X.typespec("""
+      <type class="composite" name="book" label="example composite type">
+        <doc>
+          <p>An example composite type.</p>
+        </doc>
+        <descriptor name="example:book:list" code="0x00000003:0x00000002"/>
+        <field name="title" type="string" mandatory="true" label="title of the book"/>
+        <field name="authors" type="string" multiple="true"/>
+        <field name="isbn" type="string" label="the ISBN code for the book"/>
+      </type>
+    """)
   end
 
-  test "type spec generation" do
+  test "type spec generation for null" do
     null_spec = TypeSpec.type_spec("null")
     assert %TM.Type{} = null_spec
     [enc] = null_spec.encoding
     assert enc.category == :fixed
     assert enc.width == 0
     assert enc.code == "0x40"
+  end
+
+  test "type spec for book" do
+    my_book_spec = TypeSpec.type_spec("book")
+    assert my_book_spec == book_type()
   end
 
   def book_value do
@@ -78,17 +95,18 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   def book_spec() do
-    xml_spec =
     """
-    <type class="composite" name="book" label="example composite type">
-      <doc>
-        <p>An example composite type.</p>
-      </doc>
-      <descriptor name="example:book:list" code="0x00000003:0x00000002"/>
-      <field name="title" type="string" mandatory="true" label="title of the book"/>
-      <field name="authors" type="string" multiple="true"/>
-      <field name="isbn" type="string" label="the ISBN code for the book"/>
-    </type>
+      <type class="composite" name="book" label="example composite type">
+        <doc>
+          <p>An example composite type.</p>
+        </doc>
+        <descriptor name="example:book:list" code="0x00000003:0x00000002"/>
+        <field name="title" type="string" mandatory="true" label="title of the book"/>
+        <field name="authors" type="string" multiple="true"/>
+        <field name="isbn" type="string" label="the ISBN code for the book"/>
+      </type>
     """
   end
+
+
 end
