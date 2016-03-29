@@ -1,6 +1,6 @@
 defmodule AmqpOne.Test.Encoding do
   use ExUnit.Case
-  require AmqpOne.TypeManager
+  require AmqpOne.TypeManager.XML
 
   test "null encoding" do
     null = AmqpOne.Encoding.encode(nil)
@@ -16,12 +16,12 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "xml generation" do
-    x = AmqpOne.TypeManager.xmlElement(name: :type)
-    AmqpOne.TypeManager.convert_xml(x)
+    x = AmqpOne.TypeManager.XML.xmlElement(name: :type)
+    AmqpOne.TypeManager.XML.convert_xml(x)
 
     tree = book_spec |> String.to_char_list |> :xmerl_scan.string
     IO.inspect tree
-    book = IO.inspect AmqpOne.TypeManager.convert_xml(tree)
+    book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
     Enum.zip(book.field, book_type.field) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
   end
