@@ -23,7 +23,7 @@ defmodule AmqpOne.Test.Encoding do
     tree = book_spec |> String.to_char_list |> :xmerl_scan.string
     IO.inspect tree
     book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
-    Enum.zip(book.field, book_type.field) |> Enum.all?(fn{f,s} -> assert f == s end)
+    Enum.zip(book.fields, book_type.fields) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
   end
 
@@ -52,7 +52,7 @@ defmodule AmqpOne.Test.Encoding do
   test "type spec generation for null" do
     null_spec = TypeSpec.type_spec("null")
     assert %TM.Type{} = null_spec
-    [enc] = null_spec.encoding
+    [enc] = null_spec.encodings
     assert enc.category == :fixed
     assert enc.width == 0
     assert enc.code == "0x40"
@@ -85,7 +85,7 @@ defmodule AmqpOne.Test.Encoding do
     alias AmqpOne.TypeManager.Descriptor
     spec = %Type{name: "book", class: :composite, label: "example composite type",
       descriptor: [%Descriptor{name: "example:book:list", code: "0x00000003:0x00000002"}],
-      field: [
+      fields: [
         %Field{name: "title", type: "string", mandatory: true, label: "title of the book"},
         %Field{name: "authors", type: "string", multiple: true},
         %Field{name: "isbn", type: "string", label: "the ISBN code for the book"}

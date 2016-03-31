@@ -4,8 +4,8 @@ defmodule AmqpOne.TypeManager do
   @type class_t :: :primitive | :composite | :restricted | :union
   @type category_t :: :fixed | :variable | :compound | :array
 
-  defmodule Type, do: defstruct [:name, :class, :provides, :label, :encoding,
-      :doc, :field, :choice, :descriptor]
+  defmodule Type, do: defstruct [:name, :class, :provides, :label, :encodings,
+      :doc, :fields, :choices, :descriptor]
   defmodule Encoding, do: defstruct [:name, :code, :category, :label, :width]
   defmodule Descriptor, do: defstruct [:name, :code]
   defmodule Field, do:
@@ -17,8 +17,8 @@ defmodule AmqpOne.TypeManager do
   of the AMQP 1.0 standard.
   """
   def type_spec("null") do
-    %Type{name: "null", class: :primitve, encoding:
-      %Encoding{code: <<"0x40">>, category: :fixed, width: 0, label: "the null value"}}
+    %Type{name: "null", class: :primitve, encodings:
+      [%Encoding{code: <<"0x40">>, category: :fixed, width: 0, label: "the null value"}]}
   end
 
   defmodule XML do
@@ -61,7 +61,7 @@ defmodule AmqpOne.TypeManager do
       attrs = xmlElement(type, :attributes) |> Enum.map(&convert_xml/1)
       children = xmlElement(type, :content) |> Enum.map(&convert_xml/1) |> collect_children
       t = %Type{name: attrs[:name], label: attrs[:label], class: attrs[:class],
-        encoding: children[:enc], field: children[:field], choice: children[:choice],
+        encodings: children[:enc], fields: children[:field], choices: children[:choice],
         descriptor: children[:desc]}
     end
     def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
