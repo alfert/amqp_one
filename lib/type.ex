@@ -5,7 +5,7 @@ defmodule AmqpOne.TypeManager do
   @type category_t :: :fixed | :variable | :compound | :array
 
   defmodule Type, do: defstruct [:name, :class, :provides, :label, :encodings,
-      :doc, :fields, :choices, :descriptor]
+      :doc, :fields, :choices, :descriptor, :source]
   defmodule Encoding, do: defstruct [:name, :code, :category, :label, :width]
   defmodule Descriptor, do: defstruct [:name, :code]
   defmodule Field, do:
