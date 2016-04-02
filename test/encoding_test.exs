@@ -2,6 +2,9 @@ defmodule AmqpOne.Test.Encoding do
   use ExUnit.Case
   require AmqpOne.TypeManager.XML
   alias AmqpOne.TypeManager, as: TM
+  alias AmqpOne.TypeManager.{Type, Field, Descriptor}
+  alias AmqpOne.Encoding
+
 
   test "null encoding" do
     null = AmqpOne.Encoding.encode(nil)
@@ -16,12 +19,22 @@ defmodule AmqpOne.Test.Encoding do
     assert false == AmqpOne.Encoding.decode(bin_false)
   end
 
+  test "small utf8 encoding" do
+    s = "Hallo"
+    expected = <<0xa1, 0x05>> <> s # , s :: utf8>>
+    bin = Encoding.encode_utf8(<<"Hallo">>)
+
+    assert  expected == bin
+  end
+
   test "xml generation" do
     x = AmqpOne.TypeManager.XML.xmlElement(name: :type)
     AmqpOne.TypeManager.XML.convert_xml(x)
 
     tree = book_spec |> String.to_char_list |> :xmerl_scan.string
+    IO.puts "The book spec as XMerl tree:"
     IO.inspect tree
+    IO.puts "The converted tree for a book: "
     book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
     Enum.zip(book.fields, book_type.fields) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
@@ -63,6 +76,32 @@ defmodule AmqpOne.Test.Encoding do
     assert my_book_spec == book_type()
   end
 
+  test "encode the book" do
+    my_book = Encoding.typed_encoder(book_value(), book_type())
+    |> IO.iodata_to_binary()
+
+    assert my_book == book_binary()
+  end
+
+  def url_value, do: "http://example.org/hello-world"
+
+  def url_type do
+    # source denotes the base type, which is (somehow) restricted,
+    # i.e. URL subset of String
+    %Type{class: :restricted, name: "URL", source: "string"}
+  end
+
+  def url_binary() do
+    # UTF8-String of length 0x03 with value "URL"
+    descriptor = <<0xa1, 0x03, "URL">>
+    # descriptor value, "URL", value is UTF8 (0xa1)
+    constructor = <<0x00, descriptor, 0xa1>>
+    # length of URL string
+    url = url_value
+    len = String.length(url)
+    <<constructor, len, url >>
+  end
+
   def book_value do
     %{title: "AMQP for & by Dummies",
       authors: ["Rob J. Godfrey", "Rafael H. Schloming"],
@@ -70,19 +109,19 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   def book_binary() do
-    constructor = <<0x00, 0xA3, "example:book:list", 0xc0>>
+    # con = constructed (00) as symbol8(a3) with x11 characters
+    # a compund is a list of field (0xc0 = list8)
+    constructor = <<0x00, 0xA3, 0x11, "example:book:list", 0xc0, 0x03>>
     title = <<0xa1, 0x15, "AMQP for & by Dummies">>
     godfrey = <<0x0e, "Rob J. Godfrey">>
     schloming = <<0x13, "Rafael H. Schloming">>
-    authors = <<0xe0, 0x25, 0x02, 0xa1, godfrey, schloming>>
+    # authors is an array of 2 utf-8 elements
+    authors = <<0xe0, 0x25, 0x02, 0xa1, godfrey :: binary, schloming :: binary>>
     isbn = <<0x40>> # null
-    book = <<0x40, 0x03, title, authors, isbn>>
+    book = constructor <> title <> authors <> isbn
   end
 
   def book_type() do
-    alias AmqpOne.TypeManager.Type
-    alias AmqpOne.TypeManager.Field
-    alias AmqpOne.TypeManager.Descriptor
     spec = %Type{name: "book", class: :composite, label: "example composite type",
       descriptor: [%Descriptor{name: "example:book:list", code: "0x00000003:0x00000002"}],
       fields: [

@@ -29,7 +29,7 @@ defmodule AmqpOne.TypeManager.XML do
     attrs = xmlElement(field, :attributes) |> Enum.map(&convert_xml/1)
     %Field{name: attrs[:name], label: attrs[:label], type: attrs[:type],
       requires: attrs[:requires], default: attrs[:default],
-      mandatory: attrs[:mandatory], multiple: attrs[:multiple]}
+      mandatory: boolean(attrs[:mandatory]), multiple: boolean(attrs[:multiple])}
   end
   def convert_xml(desc) when is_record(desc, :xmlElement) and xmlElement(desc, :name) == :descriptor do
     attrs = xmlElement(desc, :attributes) |> Enum.map(&convert_xml/1)
@@ -93,6 +93,9 @@ defmodule AmqpOne.TypeManager.XML do
     end)
   end
 
+  def boolean(nil), do: false
+  def boolean(true), do: true
+  def boolean(false), do: false
 
   # This is the specification of types copied from the AMQP 1.0 standard
   # (section 1.6 "Primitive Type Definitions", lines 883-1080)
@@ -307,10 +310,7 @@ defmodule AmqpOne.TypeManager.XML do
   """
   defmacro typespec(xml_string) do
     {s, _} = Code.eval_quoted(xml_string)
-    # |> String.to_char_list
-    # Generate the primitives types
     "<t>" <> s <> "</t>"
-    # ('<t>' ++ s ++ '</t>')
     |> String.to_char_list
     |> :xmerl_scan.string
     |> convert_xml
