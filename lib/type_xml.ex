@@ -18,16 +18,18 @@ defmodule AmqpOne.TypeManager.XML do
     |> Enum.into(%{})
   end
   def convert_xml(type) when is_record(type, :xmlElement) and xmlElement(type, :name) == :type do
-    IO.puts "Found XML: type (atom)"
+    # IO.puts "Found XML: type (atom)"
     attrs = xmlElement(type, :attributes) |> Enum.map(&convert_xml/1)
     children = xmlElement(type, :content) |> Enum.map(&convert_xml/1) |> collect_children
-    t = %Type{name: attrs[:name], label: attrs[:label], class: attrs[:class],
+    name = String.to_atom(attrs[:name])
+    %Type{name: name, label: attrs[:label], class: attrs[:class],
       encodings: children[:enc], fields: children[:field], choices: children[:choice],
       descriptor: children[:desc]}
   end
   def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
     attrs = xmlElement(field, :attributes) |> Enum.map(&convert_xml/1)
-    %Field{name: attrs[:name], label: attrs[:label], type: attrs[:type],
+    name = String.to_atom(attrs[:name])
+    %Field{name: name, label: attrs[:label], type: attrs[:type],
       requires: attrs[:requires], default: attrs[:default],
       mandatory: boolean(attrs[:mandatory]), multiple: boolean(attrs[:multiple])}
   end
@@ -43,8 +45,12 @@ defmodule AmqpOne.TypeManager.XML do
   def convert_xml(enc) when is_record(enc, :xmlElement) and xmlElement(enc, :name) == :encoding do
     attrs = xmlElement(enc, :attributes) |> Enum.map(&convert_xml/1)
     {width, _rest} = Integer.parse(attrs[:width])
+    "0x" <> hex = attrs[:code]
+    {code_val, _rest} = Integer.parse(hex, 16)
+    # IO.puts "Code_val #{inspect code_val} of code: #{attrs[:code]}"
+    code = <<code_val::integer-size(8)>>
     %Encoding{name: attrs[:name], label: attrs[:label], category: attrs[:category],
-      code: attrs[:code], width: width}
+      code: code, width: width}
   end
   # catch all unknown elements
   def convert_xml(enc) when is_record(enc, :xmlElement), do: nil
