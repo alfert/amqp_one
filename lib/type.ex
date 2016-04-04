@@ -21,10 +21,11 @@ defmodule AmqpOne.TypeManager do
   The type specification for the standard types as specified in the xml spec
   of the AMQP 1.0 standard.
   """
-  def type_spec("null") do
-    %Type{name: "null", class: :primitve, encodings:
-      [%Encoding{code: <<"0x40">>, category: :fixed, width: 0, label: "the null value"}]}
-  end
+  # def type_spec("null") do
+  #   %Type{name: "null", class: :primitve, encodings:
+  #     [%Encoding{code: <<"0x40">>, category: :fixed, width: 0, label: "the null value"}]}
+  # end
+  # Generate the primitives types
   XML.typespec AmqpOne.TypeManager.XML.xml_spec()
 
 end
