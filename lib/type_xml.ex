@@ -21,7 +21,7 @@ defmodule AmqpOne.TypeManager.XML do
     # IO.puts "Found XML: type (atom)"
     attrs = xmlElement(type, :attributes) |> Enum.map(&convert_xml/1)
     children = xmlElement(type, :content) |> Enum.map(&convert_xml/1) |> collect_children
-    name = String.to_atom(attrs[:name])
+    name = attrs[:name]
     %Type{name: name, label: attrs[:label], class: attrs[:class],
       encodings: children[:enc], fields: children[:field], choices: children[:choice],
       descriptor: children[:desc]}
@@ -29,7 +29,8 @@ defmodule AmqpOne.TypeManager.XML do
   def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
     attrs = xmlElement(field, :attributes) |> Enum.map(&convert_xml/1)
     name = String.to_atom(attrs[:name])
-    %Field{name: name, label: attrs[:label], type: attrs[:type],
+    type = attrs[:type]
+    %Field{name: name, label: attrs[:label], type: type,
       requires: attrs[:requires], default: attrs[:default],
       mandatory: boolean(attrs[:mandatory]), multiple: boolean(attrs[:multiple])}
   end
