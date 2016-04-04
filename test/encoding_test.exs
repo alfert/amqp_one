@@ -36,7 +36,7 @@ defmodule AmqpOne.Test.Encoding do
     IO.inspect tree
     IO.puts "The converted tree for a book: "
     book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
-    Enum.zip(book.fields, book_type.fields) |> Enum.all?(fn{f,s} -> assert f == s end)
+    Enum.zip(book.fields, book_type().fields) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
   end
 
@@ -68,7 +68,7 @@ defmodule AmqpOne.Test.Encoding do
     [enc] = null_spec.encodings
     assert enc.category == :fixed
     assert enc.width == 0
-    assert enc.code == "0x40"
+    assert enc.code == <<0x40>>
   end
 
   test "type spec for book" do
@@ -80,7 +80,25 @@ defmodule AmqpOne.Test.Encoding do
     my_book = Encoding.typed_encoder(book_value(), book_type())
     |> IO.iodata_to_binary()
 
+    # extract the last 20 bytes
+    my_end = binary_part(my_book, byte_size(my_book), -40)
+    book_end = binary_part(book_binary, byte_size(book_binary), -40)
+    assert my_end == book_end
+
     assert my_book == book_binary()
+  end
+
+  test "primitive encoder for numbers" do
+    value = 5
+    types = %{"double" => <<0x82, 64, 20, 0, 0, 0, 0, 0, 0>>, "byte" => <<0x51, 5>>,
+    "short" => <<0x61, 0, 5>>, "int" => <<0x54, 5>>, "ubyte" => <<0x50, 5>>}
+    types
+    |> Enum.each(fn {t, e} ->
+      type = TM.type_spec t
+      assert type.class == :primitive
+      encoded = Encoding.primitive_encoder(value, type)
+      assert encoded == e
+    end)
   end
 
   def url_value, do: "http://example.org/hello-world"
@@ -125,9 +143,9 @@ defmodule AmqpOne.Test.Encoding do
     spec = %Type{name: "book", class: :composite, label: "example composite type",
       descriptor: [%Descriptor{name: "example:book:list", code: "0x00000003:0x00000002"}],
       fields: [
-        %Field{name: "title", type: "string", mandatory: true, label: "title of the book"},
-        %Field{name: "authors", type: "string", multiple: true},
-        %Field{name: "isbn", type: "string", label: "the ISBN code for the book"}
+        %Field{name: :title, type: "string", mandatory: true, label: "title of the book"},
+        %Field{name: :authors, type: "string", multiple: true},
+        %Field{name: :isbn, type: "string", label: "the ISBN code for the book"}
         ]
       }
     spec
