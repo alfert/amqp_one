@@ -76,16 +76,18 @@ defmodule AmqpOne.Encoding do
     # encode an array of values
     t = TypeManager.type_spec(type)
     elems = value
-    |> Enum.map(&(typed_encoder(&1, t)))
+    |> Enum.map(&(typed_encoder(&1, t, true)))
     |> IO.iodata_to_binary
     array_size = byte_size(elems)
     array_count = length(value)
+    constructor = uncompressed_encoding(t).code
     # put the fields together
-    array_head = case array_size do
-      x when x > 255 -> <<0xf0, array_size :: size(32), array_count :: size(32)>>
-      x -> <<0xe0, array_size :: size(8), array_count :: size(8)>>
+    array_head = if array_size > 255 do
+      <<0xf0, array_size :: size(32), array_count :: size(32)>>
+    else
+      <<0xe0, array_size :: size(8), array_count :: size(8)>>
     end
-    [array_head, elems]
+    [array_head, constructor, elems]
   end
   def typed_encoder(value, %Field{multiple: false, type: type}, false) do
     t = TypeManager.type_spec(type)
@@ -180,8 +182,10 @@ defmodule AmqpOne.Encoding do
         e.code <> <<s>> <> value
       s when not in_array ->
         e = enc(t.encodings, 4)
-        e.code <> <<s :: size(4)>> <> value
-      s -> <<s :: size(4)>> <> value
+        e.code <> <<s :: size(32)>> <> value
+      s ->
+        Logger.debug "string: bytesize: #{s}, value= #{inspect value}"
+        <<s :: integer-size(32)>> <> value
     end
   end
 
