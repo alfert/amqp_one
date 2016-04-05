@@ -170,6 +170,9 @@ defmodule AmqpOne.Encoding do
   def primitive_encoder(value, %Type{class: :primitive, name: "boolean"}, true) do
     if value == true, do: <<1 :: size(8)>>, else: <<0 :: size(8)>>
   end
+  def primitive_encoder(value, %Type{class: :primitive, name: "char"} = t, in_array) do
+    if in_array, do: <<value :: utf32>>, else: <<0x73, value :: utf32>>
+  end
   def primitive_encoder(value, %Type{class: :primitive, name: "timestamp"} = t, in_array) do
     # timestamp = 64 bit unsigned integer
     if in_array, do: <<value :: size(64)>>, else: <<0x83, value :: size(64)>>

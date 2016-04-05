@@ -91,7 +91,8 @@ defmodule AmqpOne.Test.Encoding do
   test "primitive encoder for numbers" do
     value = 5
     types = %{"double" => <<0x82, 64, 20, 0, 0, 0, 0, 0, 0>>, "byte" => <<0x51, 5>>,
-    "short" => <<0x61, 0, 5>>, "int" => <<0x54, 5>>, "ubyte" => <<0x50, 5>>}
+    "short" => <<0x61, 0, 5>>, "int" => <<0x54, 5>>, "ubyte" => <<0x50, 5>>,
+    "char" => <<0x73, 0, 0, 0, 5>>}
     types
     |> Enum.each(fn {t, e} ->
       type = TM.type_spec t
