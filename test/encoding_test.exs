@@ -81,8 +81,8 @@ defmodule AmqpOne.Test.Encoding do
     |> IO.iodata_to_binary()
 
     # extract the last 20 bytes
-    my_end = binary_part(my_book, byte_size(my_book), -40)
-    book_end = binary_part(book_binary, byte_size(book_binary), -40)
+    my_end = binary_part(my_book, byte_size(my_book), -50)
+    book_end = binary_part(book_binary, byte_size(book_binary), -50)
     assert my_end == book_end
 
     assert my_book == book_binary()
@@ -131,10 +131,16 @@ defmodule AmqpOne.Test.Encoding do
     # a compund is a list of field (0xc0 = list8)
     constructor = <<0x00, 0xA3, 0x11, "example:book:list", 0xc0, 0x03>>
     title = <<0xa1, 0x15, "AMQP for & by Dummies">>
-    godfrey = <<0x0e, "Rob J. Godfrey">>
-    schloming = <<0x13, "Rafael H. Schloming">>
     # authors is an array of 2 utf-8 elements
-    authors = <<0xe0, 0x25, 0x02, 0xa1, godfrey :: binary, schloming :: binary>>
+    # we use 32 bit length as our encoding of arrays (code 0xb1), to prevent
+    # scanning of all array entries before encoding. 32 bit is always
+    # big enough (per definition). This is different from the example
+    # in the standard (0xa1), but the example as also an other obvious
+    # error: the list constructor must be 0xc0 and not 0x40, which would
+    # be null.
+    godfrey = <<0x0e :: size(32), "Rob J. Godfrey">>
+    schloming = <<0x13 :: size(32), "Rafael H. Schloming">>
+    authors = <<0xe0, 0x29, 0x02, 0xb1, godfrey :: binary, schloming :: binary>>
     isbn = <<0x40>> # null
     book = constructor <> title <> authors <> isbn
   end
