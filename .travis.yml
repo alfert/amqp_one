@@ -4,7 +4,7 @@ notifications:
     - klaus.alfert@googlemail.com
 otp_release:
   - 18.2.1
-elixir_
+elixir:
   - 1.2.2
 before_script:
   - mix local.hex --force
