@@ -102,6 +102,18 @@ defmodule AmqpOne.Test.Encoding do
     end)
   end
 
+  test "encoder for lists" do
+    types = %{[] => <<0x45>>, [1, 2] => <<0xc0, 4, 2, 0x53, 1, 0x53, 2>>}
+    types
+    |> Enum.each(fn {l, e} ->
+      type = Encoding.type_of l
+      assert type.class == :primitive
+      encoded = Encoding.typed_encoder(l, type)
+      assert encoded == e
+    end)
+  end
+
+
   def url_value, do: "http://example.org/hello-world"
 
   def url_type do

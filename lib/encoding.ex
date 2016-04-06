@@ -191,6 +191,42 @@ defmodule AmqpOne.Encoding do
         <<s :: integer-size(32)>> <> value
     end
   end
+  def primitive_encoder(value, %Type{class: :primitive, name: "list"} = t, in_array) do
+    elems = value
+    |> Enum.map(&(typed_encoder(&1, type_of(&1), false)))
+    |> IO.iodata_to_binary
+    size = byte_size(elems)
+    count = length(value)
+    # put the list together
+    case size do
+      0 -> <<0x45>>
+      x when x > 255 ->
+          <<0xd0, size :: size(32), count :: size(32)>> <> elems
+      _x ->
+      <<0xc0, size :: size(8), count :: size(8)>>  <> elems
+    end
+  end
+
+  @doc "Tries to identify the type of an Elixir value according to AMQP"
+  def type_of(nil), do: TypeManager.type_spec("null")
+  def type_of(b) when b in [true, false], do: TypeManager.type_spec("boolean")
+  def type_of(a) when is_atom(a), do: TypeManager.type_spec("symbol")
+  def type_of(l) when is_list(l), do: TypeManager.type_spec("list")
+  def type_of(m) when is_map(m) do
+    # and is a short-cut: returns false or the result of the 2nd argument
+    case Map.has_key?(m, :__struct__) and TypeManager.type_spec(m.__struct__) do
+      false -> TypeManager.type_spec("map")
+      nil   -> TypeManager.type_spec("map")
+      type  -> type
+    end
+  end
+  def type_of(i) when is_integer(i) do
+    if i >= 0,
+      do: TypeManager.type_spec("ulong"),
+      else: TypeManager.type_spec("long")
+  end
+  def type_of(f) when is_float(f), do: TypeManager.type_spec("double")
+
 
   def decode(<<0x40>>), do: nil
   def decode(<<0x41>>), do: true
