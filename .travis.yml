@@ -4,8 +4,8 @@ notifications:
     - klaus.alfert@googlemail.com
 otp_release:
   - 18.2.1
-env:
-  ELIXIR=v1.2.2
+elixir_
+  - 1.2.2
 before_script:
   - mix local.hex --force
   - mix local.rebar
