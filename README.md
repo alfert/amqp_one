@@ -1,9 +1,9 @@
-# AmpqOne
+# AmqpOne
 
 An attempt to implement an AMQP 1.0 compliant client. The OASIS standard document
 can be found in the spec folder.
 
-![Build Status](https://travis-ci.org/alfert/amqp_one.svg?branch=master)](https://travis-ci.org/alfert/amqp_one)
+![Build Status][(https://travis-ci.org/alfert/amqp_one.svg?branch=master)](https://travis-ci.org/alfert/amqp_one)
 
 ## Concepts from the Standard
 
@@ -59,14 +59,14 @@ specific properties and a timeout:
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
 
-  1. Add ampq_one to your list of dependencies in `mix.exs`:
+  1. Add amqp_one to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:ampq_one, "~> 0.0.1"}]
+          [{:amqp_one, "~> 0.0.1"}]
         end
 
-  2. Ensure ampq_one is started before your application:
+  2. Ensure amqp_one is started before your application:
 
         def application do
-          [applications: [:ampq_one]]
+          [applications: [:amqp_one]]
         end
