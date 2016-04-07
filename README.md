@@ -3,6 +3,8 @@
 An attempt to implement an AMQP 1.0 compliant client. The OASIS standard document
 can be found in the spec folder.
 
+![Build Status](https://travis-ci.org/alfert/amqp_one.svg?branch=master)](https://travis-ci.org/alfert/amqp_one)
+
 ## Concepts from the Standard
 
 ### Transport level
