@@ -53,7 +53,7 @@ defmodule AmqpOne.Encoding do
     end
     list_elements = t.fields |> Enum.map(fn(field) ->
       val = value[field.name]
-      IO.puts "Encode field #{inspect field.name} with value #{inspect val}"
+      # Logger.debug "Encode field #{inspect field.name} with value #{inspect val}"
       typed_encoder(val, field)
     end)
     [con, list_con, list_elements]
@@ -65,7 +65,7 @@ defmodule AmqpOne.Encoding do
   end
   def typed_encoder(_value, [%Descriptor{name: name} = d], _in_array) do
     # constructor = 0, descriptor name as string
-    Logger.info "encode descriptor with name #{inspect name}"
+    # Logger.info "encode descriptor with name #{inspect name}"
     [<<0x0>>, typed_encoder(name, TypeManager.type_spec("symbol"))]
   end
   # fields cannot be in an array
@@ -151,7 +151,7 @@ defmodule AmqpOne.Encoding do
         when name in [ "byte", "short"] do
     e = uncompressed_encoding(t)
     s = e.width * 8
-    IO.puts "byte/short: e.code = #{e.code}, binary? #{is_binary(e.code)}"
+    # Logger.debug "byte/short: e.code = #{e.code}, binary? #{is_binary(e.code)}"
     e.code <> <<value :: size(s)-signed-integer>>
   end
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, true)
@@ -187,7 +187,7 @@ defmodule AmqpOne.Encoding do
         e = enc(t.encodings, 4)
         e.code <> <<s :: size(32)>> <> value
       s ->
-        Logger.debug "string: bytesize: #{s}, value= #{inspect value}"
+        # Logger.debug "string: bytesize: #{s}, value= #{inspect value}"
         <<s :: integer-size(32)>> <> value
     end
   end

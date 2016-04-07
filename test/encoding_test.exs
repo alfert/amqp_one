@@ -35,7 +35,7 @@ defmodule AmqpOne.Test.Encoding do
     # IO.puts "The book spec as XMerl tree:"
     # IO.inspect tree
     # IO.puts "The converted tree for a book: "
-    book = IO.inspect AmqpOne.TypeManager.XML.convert_xml(tree)
+    book = AmqpOne.TypeManager.XML.convert_xml(tree) # |> IO.inspect
     Enum.zip(book.fields, book_type().fields) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
   end
