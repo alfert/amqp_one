@@ -200,10 +200,26 @@ defmodule AmqpOne.Encoding do
     # put the list together
     case size do
       0 -> <<0x45>>
+      x when x > 255 or in_array ->
+        if in_array, do: <<size :: size(32), count :: size(32)>> <> elems,
+          else: <<0xd0, size :: size(32), count :: size(32)>> <> elems
+      _x -> <<0xc0, size :: size(8), count :: size(8)>>  <> elems
+    end
+  end
+  def primitive_encoder(value, %Type{class: :primitive, name: "map"} = t, in_array) do
+    elems = value
+    |> Enum.map(fn {k, v} ->
+      [typed_encoder(k, type_of(k), false), typed_encoder(v, type_of(v), false)] end)
+    |> IO.iodata_to_binary
+    size = byte_size(elems)
+    count = 2 * Enum.count value
+    # put the list together
+    case size do
       x when x > 255 ->
-          <<0xd0, size :: size(32), count :: size(32)>> <> elems
-      _x ->
-      <<0xc0, size :: size(8), count :: size(8)>>  <> elems
+        if in_array,
+          do: <<size :: size(32), count :: size(32)>> <> elems,
+          else: <<0xd1, size :: size(32), count :: size(32)>> <> elems
+      _x -> <<0xc1, size :: size(8), count :: size(8)>>  <> elems
     end
   end
 
