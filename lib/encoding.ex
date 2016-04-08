@@ -82,7 +82,7 @@ defmodule AmqpOne.Encoding do
     array_count = length(value)
     constructor = uncompressed_encoding(t).code
     # put the fields together
-    array_head = if array_size > 255 do
+    array_head = if array_count > 255 do
       <<0xf0, array_size :: size(32), array_count :: size(32)>>
     else
       <<0xe0, array_size :: size(8), array_count :: size(8)>>
@@ -221,6 +221,26 @@ defmodule AmqpOne.Encoding do
           else: <<0xd1, size :: size(32), count :: size(32)>> <> elems
       _x -> <<0xc1, size :: size(8), count :: size(8)>>  <> elems
     end
+  end
+  def primitive_encoder(value, %Type{class: :primitive, name: "array"} = t, in_array) do
+    type = List.first(value) |> type_of
+    elems = value
+    |> Enum.map(&(typed_encoder(&1, type, true)))
+    |> IO.iodata_to_binary
+    size = byte_size(elems)
+    count = length(value)
+    constructor = uncompressed_encoding(type)
+    # put the array together
+    head = case size do
+      x when x > 255 or in_array ->
+        if in_array do
+           <<size :: size(32), count :: size(32)>>
+         else
+           <<0xf0, size :: size(32), count :: size(32)>>#
+         end
+      _x -> <<0xe0, size :: size(8), count :: size(8)>>
+    end
+    head <> constructor.code <> elems
   end
 
   @doc "Tries to identify the type of an Elixir value according to AMQP"

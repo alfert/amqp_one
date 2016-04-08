@@ -125,6 +125,17 @@ defmodule AmqpOne.Test.Encoding do
     end)
   end
 
+  test "encoder for arrays" do
+    test_values = %{[1, 2] => <<0xe0, 2*8, 2, 0x80, 1 :: size(64), 2 :: size(64)>>}
+    type = TM.type_spec("array")
+    test_values
+    |> Enum.each(fn {l, e} ->
+      assert type.class == :primitive
+      encoded = Encoding.typed_encoder(l, type)
+      assert encoded == e
+    end)
+  end
+
 
   def url_value, do: "http://example.org/hello-world"
 
