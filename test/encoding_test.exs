@@ -80,12 +80,22 @@ defmodule AmqpOne.Test.Encoding do
     my_book = Encoding.typed_encoder(book_value(), book_type())
     |> IO.iodata_to_binary()
 
-    # extract the last 20 bytes
+    # extract the last bytes
     my_end = binary_part(my_book, byte_size(my_book), -50)
     book_end = binary_part(book_binary, byte_size(book_binary), -50)
     assert my_end == book_end
 
     assert my_book == book_binary()
+  end
+
+  test "decode the book" do
+    # 0x00 is normally eliminated by decode_bin for a composite value
+    # before running the typed_decoder. Thus we have to do it here
+    # by hand.
+    <<0x00, book_bin :: binary>> = book_binary()
+    {my_book, <<>>} = Encoding.decode_bin(book_binary)# Encoding.typed_decoder(book_bin, book_type())
+
+    assert my_book == book_value()
   end
 
   test "primitive encoder for numbers" do
