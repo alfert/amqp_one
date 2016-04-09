@@ -263,9 +263,106 @@ defmodule AmqpOne.Encoding do
   end
   def type_of(f) when is_float(f), do: TypeManager.type_spec("double")
 
-
   def decode(<<0x40>>), do: nil
   def decode(<<0x41>>), do: true
   def decode(<<0x42>>), do: false
+
+  @spec decode_bin(binary) :: {any, binary}
+  def decode_bin(<<>>), do: nil
+  def decode_bin(<<head :: binary-size(1), rest :: binary>>), do: decode_bin(head, rest)
+
+  @spec decode_bin(constructor :: binary, data :: binary)  :: {any, binary}
+  def decode_bin(<<0x40>>, <<rest :: binary>>), do: {nil, rest}
+  def decode_bin(<<0x41>>, <<rest :: binary>>), do: {true, rest}
+  def decode_bin(<<0x42>>, <<rest :: binary>>), do: {false, rest}
+  def decode_bin(<<0x56>>, <<0, rest :: binary>>), do: {false, rest}
+  def decode_bin(<<0x56>>, <<1, rest :: binary>>), do: {true, rest}
+  # ubyte
+  def decode_bin(<<0x50>>, <<val :: integer, rest :: binary>>), do: {val, rest}
+  # ushort
+  def decode_bin(<<0x60>>, <<val :: integer-size(16), rest :: binary>>), do: {val, rest}
+  # uint
+  def decode_bin(<<0x70>>, <<val :: integer-size(32), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x52>>, <<val :: integer, rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x43>>, <<rest :: binary>>), do: {0, rest}
+  # ulong
+  def decode_bin(<<0x80>>, <<val :: integer-size(64), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x53>>, <<val :: integer, rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x44>>, <<rest :: binary>>), do: {0, rest}
+  # byte
+  def decode_bin(<<0x51>>, <<val :: signed-integer, rest :: binary>>), do: {val, rest}
+  # short
+  def decode_bin(<<0x61>>, <<val :: signed-integer-size(16), rest :: binary>>), do: {val, rest}
+  # int
+  def decode_bin(<<0x71>>, <<val :: signed-integer-size(32), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x54>>, <<val :: signed-integer, rest :: binary>>), do: {val, rest}
+  # long
+  def decode_bin(<<0x81>>, <<val :: signed-integer-size(64), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x55>>, <<val :: signed-integer, rest :: binary>>), do: {val, rest}
+  # 32 and 64 bit floats
+  def decode_bin(<<0x72>>, <<val :: float-size(32), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0x82>>, <<val :: float-size(64), rest :: binary>>), do: {val, rest}
+  # 32, 64, 128 bit decimals encodings IEEE 754-2008 are not supported
+  # UTF-32 char
+  def decode_bin(<<0x73>>, <<val :: utf32, rest :: binary>>), do: {val, rest}
+  # 64 bit timestamp as milliseconds since Unix epoch
+  def decode_bin(<<0x83>>, <<val :: signed-integer-size(64), rest :: binary>>), do: {val, rest}
+  # 16 byte long UUID, is taken directly as binary, could be used by UUID.info
+  def decode_bin(<<0x98>>, <<val :: binary-size(16), rest :: binary>>), do: {val, rest}
+  # a binary = sequence of octects
+  def decode_bin(<<0xa0>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0xb0>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  # an utf8 encoded string, it's size is in bytes, not in graphemes, so it is essentially a simple binary
+  def decode_bin(<<0xa1>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0xb1>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  # symbols
+  def decode_bin(<<0xa3>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0xb4>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  # lists
+  # maps
+  # arrays
+  # composites
+  def decode_bin(<<0x00>>, <<rest :: binary>>) do
+    {descriptor, value_bin} = decode_bin(rest)
+    type = TypeManager.type_spec(descriptor)
+    typed_decoder(value_bin, type)
+  end
+
+  ################
+  ###
+  # decode_array(<<0xe0, size, count, con, array :: size(size), rest) do
+  #  for 1 to count, do: decode_bin(con, array[i])
+  # end
+  ###
+  ###############
+  @spec typed_decoder(binary, Type.t) :: {any, binary}
+  def typed_decoder(binary, %Type{class: :primitive}) do
+    decode_bin(binary)
+  end
+  def typed_decoder(<<con, value_bin :: binary>>, %Type{class: :composite} = t) do
+    {size, count, values} = case con do
+      <<0xc0>> ->
+        <<s, c, vs :: binary>> = value_bin
+        {s, c, vs}
+      <<0xd0>> ->
+        <<s :: size(32), c :: size(32), vs :: binary>> = value_bin
+        {s, c, vs}
+    end
+    t.fields
+    |> Stream.take(count)
+    |> Enum.reduce({%{}, values}, fn field, {map, bin} ->
+      {field_val, rest} = typed_decoder(bin, field)
+      {Map.put(map, String.to_atom(field.name), field_val), rest}
+    end)
+  end
+  def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
+    _type = TypeManager.type_spec(f.type)
+    is_array = f.multiple
+    {value, rest} = case con do
+      x when x in [<<0xe0>>, <<0xf0>>] and is_array -> decode_bin(field_bin)
+      x when not is_array -> decode_bin(field_bin)
+      # array and not a multiple crashes, non-array and multiple also!
+    end
+  end
 
 end
