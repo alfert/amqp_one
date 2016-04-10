@@ -80,10 +80,19 @@ defmodule AmqpOne.Test.Encoding do
     my_book = Encoding.typed_encoder(book_value(), book_type())
     |> IO.iodata_to_binary()
 
+    assert byte_size(my_book) == byte_size(book_binary)
+
     # extract the last bytes
-    my_end = binary_part(my_book, byte_size(my_book), -50)
-    book_end = binary_part(book_binary, byte_size(book_binary), -50)
+    my_end = binary_part(my_book, byte_size(my_book), -60)
+    book_end = binary_part(book_binary, byte_size(book_binary), -60)
     assert my_end == book_end
+
+    # extract the first bytes
+    my_start = binary_part(my_book, 40, 40)
+    book_start = binary_part(book_binary, 40, 40)
+    assert my_start == book_start
+
+    byte_differ(my_book, book_binary)
 
     assert my_book == book_binary()
   end
@@ -232,5 +241,22 @@ defmodule AmqpOne.Test.Encoding do
     """
   end
 
+  def byte_differ(first, second) do
+    max = byte_size(first) -1
+    0..max
+    |> Enum.each(fn i ->
+      f = :binary.at(first, i)
+      s = :binary.at(second, i)
+      if f != s do
+        IO.ANSI.red
+        IO.puts("")
+        IO.puts "position #{i}: fst= #{Integer.to_string(f,16)}, snd=#{Integer.to_string(s,16)}"
+        IO.ANSI.normal
+      else
+        IO.write "#{Integer.to_string(f,16)}"
+        if i < max, do: IO.write ", "
+      end
+    end)
+  end
 
 end

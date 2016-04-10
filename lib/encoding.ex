@@ -46,16 +46,17 @@ defmodule AmqpOne.Encoding do
     con = if in_array, do: [], # no con required due to array
         else: typed_encoder(value, t.descriptor)
     field_count = Enum.count(t.fields)
-    list_con = if field_count > 255 do
-      <<0xd0, field_count :: size(32)>>
-    else
-      <<0xc0, field_count :: size(8)>>
-    end
     list_elements = t.fields |> Enum.map(fn(field) ->
       val = value[field.name]
       # Logger.debug "Encode field #{inspect field.name} with value #{inspect val}"
       typed_encoder(val, field)
     end)
+    field_size = IO.iodata_length(list_elements)
+    list_con = if field_size > 255 do
+      <<0xd0, field_size :: size(32), field_count :: size(32)>>
+    else
+      <<0xc0, field_size :: size(8), field_count :: size(8)>>
+    end
     [con, list_con, list_elements]
   end
   def typed_encoder(value, %Type{class: :restricted, choices: nil} = t, _in_array) do
@@ -341,10 +342,10 @@ defmodule AmqpOne.Encoding do
   end
   def typed_decoder(<<con, value_bin :: binary>>, %Type{class: :composite} = t) do
     {size, count, values} = case con do
-      <<0xc0>> ->
+      0xc0 ->
         <<s, c, vs :: binary>> = value_bin
         {s, c, vs}
-      <<0xd0>> ->
+      0xd0 ->
         <<s :: size(32), c :: size(32), vs :: binary>> = value_bin
         {s, c, vs}
     end
@@ -356,11 +357,14 @@ defmodule AmqpOne.Encoding do
     end)
   end
   def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
-    _type = TypeManager.type_spec(f.type)
+    type = TypeManager.type_spec(f.type)
+    Logger.debug "field type = #{inspect type}"
+    Logger.debug "Constructor = #{Integer.to_string(con, 16)}"
+
     is_array = f.multiple
     {value, rest} = case con do
       x when x in [<<0xe0>>, <<0xf0>>] and is_array -> decode_bin(field_bin)
-      x when not is_array -> decode_bin(field_bin)
+      x when not is_array -> decode_bin(<<con>>, field_bin)
       # array and not a multiple crashes, non-array and multiple also!
     end
   end
