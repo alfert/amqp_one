@@ -320,8 +320,24 @@ defmodule AmqpOne.Encoding do
   def decode_bin(<<0xa3>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
   def decode_bin(<<0xb4>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
   # lists
+  def decode_bin(<<0x45>>, rest), do: {[], rest}
+  def decode_bin(<<0xc0>>, <<size :: integer, count :: integer, val :: binary-size(size), rest :: binary>>),
+    do: {decode_list(val, count), rest}
+  def decode_bin(<<0xd0>>, <<size :: integer-size(32), count :: integer-size(32),
+      val :: binary-size(size), rest :: binary>>), do: {decode_list(val, count), rest}
   # maps
+  def decode_bin(<<0xc1>>, <<size :: integer, count :: integer, val :: binary-size(size), rest :: binary>>),
+    do: {decode_map(val, count), rest}
+  def decode_bin(<<0xd1>>, <<size :: integer-size(32), count :: integer-size(32), val :: binary-size(size), rest :: binary>>),
+    do: {decode_map(val, count), rest}
   # arrays
+  def decode_bin(<<0xe0>>, <<size :: integer, count :: integer, con :: integer, rest :: binary>>) do
+    # identify type - could be one byte for a primitive byte,
+    # or something larger
+    decode_array(con, size, count, rest)
+  end
+  def decode_bin(<<0xf0>>, <<size :: integer-size(32), count :: integer-size(32),
+      con :: integer, rest :: binary>>), do: decode_array(con, size, count, rest)
   # composites
   def decode_bin(<<0x00>>, <<rest :: binary>>) do
     {descriptor, value_bin} = decode_bin(rest)
@@ -329,13 +345,43 @@ defmodule AmqpOne.Encoding do
     typed_decoder(value_bin, type)
   end
 
-  ################
-  ###
-  # decode_array(<<0xe0, size, count, con, array :: size(size), rest) do
-  #  for 1 to count, do: decode_bin(con, array[i])
-  # end
-  ###
-  ###############
+  def decode_list(value, count) do
+    {list, <<>>} = 1..count |>
+    Enum.reduce({[], value}, fn _, {l, bytes} ->
+      {elem, remaining} = decode_bin(bytes)
+      {[elem | l], remaining}
+    end)
+    Enum.reverse list
+  end
+
+  def decode_map(value, count) do
+    {list, <<>>} = 1..(div(count, 2)) |>
+    Enum.reduce({%{}, value}, fn _, {map, bytes} ->
+      {key, rem1} = decode_bin(bytes)
+      {value, remaining} = decode_bin(rem1)
+      {Map.put(map, key, value), remaining}
+    end)
+  end
+
+  def decode_array(con, size, count, value_bytes) do
+    if con == 0x00 do
+      {type, bin} = decode_bin(value_bytes)
+      <<value :: binary-size(size), rest :: binary>> = bin
+    else
+      <<value :: binary-size(size), rest :: binary>> = value_bytes
+    end
+    {list, <<>>} = 1..count |>
+    Enum.reduce({[], value}, fn _, {l, bytes} ->
+      {elem, remaining} = if con == 0x00 do
+        typed_decoder(bytes, type)
+      else
+        decode_bin(<<con>>, bytes)
+      end
+      {[elem | l], remaining}
+    end)
+    {Enum.reverse(list), rest}
+  end
+
   @spec typed_decoder(binary, Type.t) :: {any, binary}
   def typed_decoder(binary, %Type{class: :primitive}) do
     decode_bin(binary)
@@ -353,7 +399,7 @@ defmodule AmqpOne.Encoding do
     |> Stream.take(count)
     |> Enum.reduce({%{}, values}, fn field, {map, bin} ->
       {field_val, rest} = typed_decoder(bin, field)
-      {Map.put(map, String.to_atom(field.name), field_val), rest}
+      {Map.put(map, field.name, field_val), rest}
     end)
   end
   def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
@@ -363,8 +409,8 @@ defmodule AmqpOne.Encoding do
 
     is_array = f.multiple
     {value, rest} = case con do
-      x when x in [<<0xe0>>, <<0xf0>>] and is_array -> decode_bin(field_bin)
-      x when not is_array -> decode_bin(<<con>>, field_bin)
+      x when x in [0xe0, 0xf0] and is_array -> decode_bin(field_bin)
+      x when not is_array -> decode_bin(<<con>>, value)
       # array and not a multiple crashes, non-array and multiple also!
     end
   end

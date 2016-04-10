@@ -92,7 +92,7 @@ defmodule AmqpOne.Test.Encoding do
     book_start = binary_part(book_binary, 40, 40)
     assert my_start == book_start
 
-    byte_differ(my_book, book_binary)
+    # byte_differ(my_book, book_binary)
 
     assert my_book == book_binary()
   end
@@ -101,6 +101,8 @@ defmodule AmqpOne.Test.Encoding do
     # 0x00 is normally eliminated by decode_bin for a composite value
     # before running the typed_decoder. Thus we have to do it here
     # by hand.
+    TM.start_link()
+    TM.add_type(book_type())
     <<0x00, book_bin :: binary>> = book_binary()
     {my_book, <<>>} = Encoding.decode_bin(book_binary)# Encoding.typed_decoder(book_bin, book_type())
 
@@ -199,15 +201,13 @@ defmodule AmqpOne.Test.Encoding do
   def book_binary() do
     # con = constructed (00) as symbol8(a3) with x11 characters
     # a compund is a list of field (0xc0 = list8)
-    constructor = <<0x00, 0xA3, 0x11, "example:book:list", 0xc0, 0x03>>
+    constructor = <<0x00, 0xA3, 0x11, "example:book:list", 0xc0, 0x45, 0x03>>
     title = <<0xa1, 0x15, "AMQP for & by Dummies">>
     # authors is an array of 2 utf-8 elements
     # we use 32 bit length as our encoding of arrays (code 0xb1), to prevent
     # scanning of all array entries before encoding. 32 bit is always
     # big enough (per definition). This is different from the example
-    # in the standard (0xa1), but the example as also an other obvious
-    # error: the list constructor must be 0xc0 and not 0x40, which would
-    # be null.
+    # in the standard (0xa1).
     godfrey = <<0x0e :: size(32), "Rob J. Godfrey">>
     schloming = <<0x13 :: size(32), "Rafael H. Schloming">>
     authors = <<0xe0, 0x29, 0x02, 0xb1, godfrey :: binary, schloming :: binary>>
