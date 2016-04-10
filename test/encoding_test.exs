@@ -146,6 +146,21 @@ defmodule AmqpOne.Test.Encoding do
     end)
   end
 
+  test "adding types to type manager" do
+    pre_tables = :ets.all()
+    {:ok, pid} = TM.start_link()
+    tables = :ets.all()
+    assert length(pre_tables) < length(tables)
+
+    t = Enum.reject(tables, &(Enum.member?(pre_tables, &1)) )
+    assert [TM] == t
+
+    TM.add_type("book", book_type())
+    assert book_type() == TM.type_spec("book")
+
+    TM.add_type(book_type())
+    assert book_type() == TM.type_spec("example:book:list")
+  end
 
   def url_value, do: "http://example.org/hello-world"
 

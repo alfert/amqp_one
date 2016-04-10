@@ -9,12 +9,23 @@ defmodule AmqpOne.TypeManager.Choice, do: defstruct [:name, :value, :doc]
 
 defmodule AmqpOne.TypeManager do
 
+  @moduledoc """
+  Manages type specifications.
+
+  You can add types and query types. All predefined types
+  are handled directly, user definied types are stored in
+  an ETS table.
+  """
+
   alias AmqpOne.TypeManager.XML
   require AmqpOne.TypeManager.XML
   alias AmqpOne.TypeManager.{Type, Field, Descriptor, Encoding, Choice}
 
   @type class_t :: :primitive | :composite | :restricted | :union
   @type category_t :: :fixed | :variable | :compound | :array
+
+  defstruct [:type_store]
+  @ets_name __MODULE__
 
 
   @doc """
@@ -25,6 +36,43 @@ defmodule AmqpOne.TypeManager do
   # Generate the primitives types
   XML.typespec AmqpOne.TypeManager.XML.xml_spec()
   # this must always be the last resort: We do not find a type and return nil
+  def type_spec(name) do
+    case :ets.lookup(__MODULE__, name) do
+      [] -> nil
+      [{^name, type}] -> type
+    end
+  end
   def type_spec(_), do: nil
+
+  def start_link() do
+    Agent.start_link(fn() ->
+      # use ETS default options: set, key on position 1, protected
+      %__MODULE__{type_store: :ets.new(__MODULE__, [:named_table])} end, name: __MODULE__)
+  end
+
+  @doc "Adds a type with an explicit name"
+  def add_type(name, %Type{} = t) do
+    Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
+      true = :ets.insert(ts, {name, t})
+    end)
+  end
+
+  @doc """
+  Adds a type with the name(s) implicitely given in the type specification
+  """
+  def add_type(%Type{} = t) do
+    Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
+      get_names(t)
+      |> Enum.each(fn name -> true = :ets.insert(ts, {name, t}) end)
+    end)
+  end
+
+  defp get_names(%Type{} = t) do
+    case t.descriptor do
+      nil -> [t.name]
+      [%Descriptor{name: n, code: c}] -> [n, c]
+    end
+  end
+
 
 end
