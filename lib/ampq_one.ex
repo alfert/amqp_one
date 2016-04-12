@@ -13,7 +13,8 @@ defmodule AmqpOne do
       # Define workers and child supervisors to be supervised
       # worker(AmqpOne.Worker, [arg1, arg2, arg3]),
       # ranch_sup,
-      ranch_listener
+      ranch_listener,
+      worker(AmqpOne.TypeManager, [])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
