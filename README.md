@@ -54,6 +54,13 @@ specific properties and a timeout:
     app_props = %{"my-prop" => "cool system"}
     AmpqOne.send("Hello AMQP-1", props, app_props, 5_000)
 
+## TODO
+
+* add the type manager to the supervision tree
+* extend the client API to use a sender to a send a message
+* add all types of section 2 to the type manager (via XML)
+* implement the (client side only?) of a transport 
+
 
 ## Installation
 
