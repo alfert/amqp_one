@@ -8,20 +8,35 @@ defmodule AmqpOne.TypeManager.XML do
   alias AmqpOne.TypeManager.{Type, Field, Descriptor, Encoding, Choice}
 
   @doc "Takes the xmerl_scan results and produces a type spec"
-  def convert_xml({type, _}), do:  convert_xml(type)
-  def convert_xml(type) when is_record(type, :xmlElement) and xmlElement(type, :name) == :t do
+  def convert_xml({type, _}), do: convert_xml(type)
+  def convert_xml(doc) when is_record(doc, :xmlElement) and xmlElement(doc, :name) in [:amqp] do
+    xmlElement(doc, :content)
+    |> Enum.map(&convert_xml/1)
+    |> Enum.filter(fn
+      nil -> false
+      _ -> true
+    end)
+    # |> IO.inspect()
+    |> Enum.reduce(%{}, fn
+      nil, map ->  map
+      types, map when is_map(types) -> Map.merge(map, types)
+    end)
+    # |> IO.inspect()
+  end
+  def convert_xml(type) when is_record(type, :xmlElement) and xmlElement(type, :name) in [:t, :section] do
+    # IO.puts ("convert_xml: #{inspect xmlElement(type, :name)}")
     xmlElement(type, :content)
     |> Enum.map(&convert_xml/1)
     |> collect_children
-    |> Map.fetch!(:type)
+    |> Map.get(:type, [])
     |> Stream.map(fn t = %Type{name: name} -> {name, t} end)
     |> Enum.into(%{})
   end
   def convert_xml(type) when is_record(type, :xmlElement) and xmlElement(type, :name) == :type do
-    # IO.puts "Found XML: type (atom)"
     attrs = xmlElement(type, :attributes) |> Enum.map(&convert_xml/1)
     children = xmlElement(type, :content) |> Enum.map(&convert_xml/1) |> collect_children
     name = attrs[:name]
+    # IO.puts "convert_xml: type #{inspect name}"
     %Type{name: name, label: attrs[:label], class: attrs[:class],
       encodings: children[:enc], fields: children[:field], choices: children[:choice],
       descriptor: children[:desc]}
@@ -92,6 +107,7 @@ defmodule AmqpOne.TypeManager.XML do
         %Field{} -> {:field, value}
         %Choice{} -> {:choice, value}
         %Descriptor{} -> {:desc, value}
+        %{} -> {:nothing, nil}
       end
     end)
     |> Enum.reduce(%{}, fn({key, value}, acc) ->
@@ -309,6 +325,12 @@ defmodule AmqpOne.TypeManager.XML do
 
   def xml_spec(), do: @xml_spec
 
+  def frame_spec() do
+    File.read!("spec/amqp-core-v1/amqp-core-transport-v1.0-os.xml")
+    |> String.to_char_list
+    |> :xmerl_scan.string
+    |> convert_xml
+  end
 
   @doc """
   Generate the typespecs from the XML specification.

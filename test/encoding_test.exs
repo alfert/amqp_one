@@ -1,10 +1,12 @@
 defmodule AmqpOne.Test.Encoding do
   use ExUnit.Case
   require AmqpOne.TypeManager.XML
+  require Logger
   alias AmqpOne.TypeManager, as: TM
   alias AmqpOne.TypeManager.{Type, Field, Descriptor}
   alias AmqpOne.Encoding
   alias AmqpOne.Transport
+  alias AmqpOne.TypeManager.XML
 
 
   test "null encoding" do
@@ -159,14 +161,14 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "adding types to type manager" do
-    TM.stop()
-    pre_tables = :ets.all()
-    {:ok, pid} = TM.start_link()
-    tables = :ets.all()
-    assert length(pre_tables) < length(tables)
-
-    t = Enum.reject(tables, &(Enum.member?(pre_tables, &1)) )
-    assert [TM] == t
+    # TM.stop()
+    # pre_tables = :ets.all()
+    # {:ok, pid} = TM.start_link()
+    # tables = :ets.all()
+    # assert length(pre_tables) < length(tables)
+    #
+    # t = Enum.reject(tables, &(Enum.member?(pre_tables, &1)) )
+    # assert [TM] == t
 
     TM.add_type("book", book_type())
     assert book_type() == TM.type_spec("book")
@@ -181,6 +183,13 @@ defmodule AmqpOne.Test.Encoding do
     data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
     enc = Transport.encode_frame(data, channel)
     assert {channel, data} == Transport.decode_frame(enc)
+  end
+
+  test "Frame type specification" do
+    spec = XML.frame_spec()
+    assert %{} = spec
+    # Logger.debug "Spec is: #{inspect spec}"
+    assert %Type{} = spec["begin"]
   end
 
   def url_value, do: "http://example.org/hello-world"
