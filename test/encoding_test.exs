@@ -158,6 +158,7 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "adding types to type manager" do
+    TM.stop()
     pre_tables = :ets.all()
     {:ok, pid} = TM.start_link()
     tables = :ets.all()

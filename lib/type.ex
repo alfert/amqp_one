@@ -50,6 +50,10 @@ defmodule AmqpOne.TypeManager do
       %__MODULE__{type_store: :ets.new(__MODULE__, [:named_table])} end, name: __MODULE__)
   end
 
+  def stop() do
+    Agent.stop(__MODULE__, :normal)
+  end
+
   @doc "Adds a type with an explicit name"
   def add_type(name, %Type{} = t) do
     Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
