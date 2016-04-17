@@ -35,6 +35,17 @@ Transport happens on behalf of TCP. AMQP defines messaging between nodes.
 
 These concepts are shown in the diagram: [Transport Concepts](transport.png)
 
+Basic transport is done via connections and channels. On top of that, a session
+holds an incoming and outgoing channel for sequential communication. The session
+communication is concerned with general frame transfers to send and acknowlegde
+transfers on the protocol level.
+
+Queue-communication is done via links. Links connect a sender node and a
+receiver node within a session and provide uni-directional transfer of
+application level messages.
+
+
+
 ## API Design
 
 This approach is modeled after AMQP.NET Lite (cf. https://dzone.com/refcardz/amqp-essentials)
@@ -59,7 +70,7 @@ specific properties and a timeout:
 * add the type manager to the supervision tree
 * extend the client API to use a sender to a send a message
 * add all types of section 2 to the type manager (via XML)
-* implement the (client side only?) of a transport 
+* implement the (client side only?) of a transport
 
 
 ## Installation
