@@ -23,7 +23,10 @@ defmodule AmqpOne.Transport do
   @typedoc "The connection reference"
   @opaque conn_t :: pid
 
+  # The header of a amqp initial data transfer
   @amqp_header <<"AMQP", 0, 1, 0, 0>>
+  # Types of AMQP frames
+  @amqp_frame 0
 
   defmodule Frame, do: defstruct performative: :close, channel: 0, payload: ""
 
@@ -85,18 +88,36 @@ defmodule AmqpOne.Transport do
   Encodes the internal representation of a frame to a proper
   binary encoded AMQP 1.0 frame
   """
-  @spec encode_frame(%Frame{}) :: binary
-  def encode_frame(%Frame{} = frame) do
-    :erlang.term_to_binary(frame)
+  @spec encode_frame(%Frame{}, non_neg_integer) :: binary
+  def encode_frame(frame, channel) when is_integer(channel) and channel < 65636 do
+    payload = :erlang.term_to_binary(frame)
+    << 2 :: integer,
+      @amqp_frame :: integer,
+      channel ::size(16)-integer,
+      payload :: binary>>
   end
 
   @doc """
   Decodes a proper binary encoded AMQP 1.0 frame to the internal representation
   of a frame.
+  The four bytes with the length of the frame is already handled by the
+  TCP framework. Therefore the frame header to be considered has only 4 bytes.
+
+  The function returns the tuple `{channel, frame}`
   """
-  @spec decode_frame(%Frame{}) :: binary
+  @spec decode_frame(binary) :: {channel:: non_neg_integer, frame :: any}
   def decode_frame(bin_frame) when is_binary(bin_frame) do
-    :erlang.binary_to_term(bin_frame)
+    <<doff :: integer, type :: integer, channel :: size(16), rest :: binary>> = bin_frame
+    case type do
+      @amqp_frame ->
+        ext_header_size = 4*doff - 8
+        <<_ignore_header :: binary-size(ext_header_size), frame :: binary>> = rest
+        value = :erlang.binary_to_term(frame)
+        {channel, value}
+      any_type ->
+        Logger.error "Unknwon frame type #{any_type}"
+        ^any_type = @amqp_frame
+      end
   end
 
 
@@ -175,7 +196,7 @@ defmodule AmqpOne.Transport do
   end
   def connection(:hdr_sent, %Frame{performative: :open} = f, state) do
     # we are sending an open directly after the hdr: pipelining!
-    AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
+    AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, f.channel))
     put_in state, :state, :open_pipe
   end
   def connection(:hdr_sent, @amqp_header, state) do
@@ -192,7 +213,7 @@ defmodule AmqpOne.Transport do
     put_in state, :state, :hdr_exch
   end
   def connection(:hdr_exch, %Frame{performative: :open} = f, state) do
-    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
+    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, f.channel))
     put_in state, :state, :open_sent
   end
   def connection(:hdr_exch, {:tcp, %Frame{performative: :open} = f}, state) do
@@ -200,7 +221,7 @@ defmodule AmqpOne.Transport do
     put_in state, :state, :open_rcvd
   end
   def connection(:open_rcvd, %Frame{performative: :open} = f, state) do
-    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f))
+    :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, f.channel))
     put_in state, :state, :opened
   end
   def connection(:open_sent, {:tcp, %Frame{performative: :open} = f}, state) do

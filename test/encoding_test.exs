@@ -4,6 +4,7 @@ defmodule AmqpOne.Test.Encoding do
   alias AmqpOne.TypeManager, as: TM
   alias AmqpOne.TypeManager.{Type, Field, Descriptor}
   alias AmqpOne.Encoding
+  alias AmqpOne.Transport
 
 
   test "null encoding" do
@@ -172,6 +173,14 @@ defmodule AmqpOne.Test.Encoding do
 
     TM.add_type(book_type())
     assert book_type() == TM.type_spec("example:book:list")
+  end
+
+  test "Frame encoding" do
+    length = :random.uniform(50) - 1
+    channel = :random.uniform(65636) -1
+    data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
+    enc = Transport.encode_frame(data, channel)
+    assert {channel, data} == Transport.decode_frame(enc)
   end
 
   def url_value, do: "http://example.org/hello-world"
