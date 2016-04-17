@@ -42,7 +42,6 @@ defmodule AmqpOne.TypeManager do
       [{^name, type}] -> type
     end
   end
-  def type_spec(_), do: nil
 
   def start_link() do
     Agent.start_link(fn() ->
