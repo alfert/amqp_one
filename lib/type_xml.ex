@@ -126,20 +126,81 @@ defmodule AmqpOne.TypeManager.XML do
     end)
   end
 
-  def boolean(nil), do: false
-  def boolean(true), do: true
-  def boolean(false), do: false
+  defp boolean(nil), do: false
+  defp boolean(true), do: true
+  defp boolean(false), do: false
 
   @doc """
   The XML specification of the primitive types of AMQP 1.0.
   """
   def xml_spec(), do: File.read!("spec/amqp-core-v1/amqp-core-types-v1.0-os.xml")
 
+  @doc """
+  Converts the Frame specification (`amqp-core-transport-v1.0-os.xml`) into
+  the type definition
+  """
+  @spec frame_spec() :: %{String.t => Type.t}
   def frame_spec() do
     File.read!("spec/amqp-core-v1/amqp-core-transport-v1.0-os.xml")
     |> String.to_char_list
     |> :xmerl_scan.string
     |> convert_xml
+  end
+
+  def generate_struct(%Type{class: :composite} = t, parent_mod) do
+    IO.puts "Found comp type #{t.name}"
+    fs = t.fields |> Enum.map(&extract_field/1)
+    field_list = fs |> Enum.map(fn f -> {f.name, f.value} end)
+    type_list = fs
+    |> Enum.map(fn f -> {f.name, f.type} end)
+    |> Enum.map(fn {n, t} -> quote do unquote(n) :: unquote(t) end end)
+    mod_name = Atom.to_string(parent_mod) <>
+      "." <> (t.name |> String.capitalize)
+    |> String.to_atom
+    quote do
+      defmodule unquote(mod_name) do
+        defstruct unquote(field_list)
+        @type t :: %unquote(mod_name){} # unquote(type_list)}
+      end
+    end
+  end
+  def generate_struct(%Type{} = t, _parent_mod) do
+    IO.puts "Ignore simple type #{t.name}"
+    []
+  end
+
+  def extract_field(%Field{name: n, type: t} = f) do
+    name = n |> underscore |> String.to_atom
+    value = case f do
+      %Field{multiple: true} -> []
+      %Field{default: d} -> d
+    end
+    type = t |> underscore |> amqp_type
+    %{name: name, value: value, type: type}
+  end
+
+  def underscore(a) when is_atom(a) do
+    Atom.to_string(a) |> underscore
+  end
+  def underscore(string) do
+    String.replace(string, "-", "_")
+  end
+
+  @doc "map amqp type to their Elixir counterparts (if they have other names)"
+  def amqp_type("*"), do: :any
+  def amqp_type("array"), do: :list
+  def amqp_type("string"), do: :"Elixir.String.t"
+  def amqp_type("symbol"), do: :atom
+  def amqp_type("uuid"), do: :binary
+  def amqp_type(f) when f in ["double", "float"], do: :float
+  def amqp_type(n) when n in ["ubyte", "ushort", "uint", "ulong"], do: :non_neg_integer
+  def amqp_type(i) when i in ["byte", "short", "int", "long", "timestamp"], do: :integer
+  def amqp_type(any_other_type), do: String.to_atom(any_other_type)
+
+  defmacro frame_structs do
+    frame_spec()
+    |> Enum.reject(fn entry -> entry == [] end)
+    |> Enum.map(fn {name, type} -> generate_struct type, __CALLER__.module end)
   end
 
   @doc """
@@ -148,8 +209,9 @@ defmodule AmqpOne.TypeManager.XML do
   argument and returns the Elixir equivalent of the XML spec.
   """
   defmacro typespec(xml_string) do
+    caller = __CALLER__.module
+    Code.ensure_compiled(caller)
     {s, _} = Code.eval_quoted(xml_string)
-    # "<t>" <> s <> "</t>"
     String.to_char_list(s)
     |> :xmerl_scan.string
     |> convert_xml

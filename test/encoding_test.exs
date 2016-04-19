@@ -7,6 +7,7 @@ defmodule AmqpOne.Test.Encoding do
   alias AmqpOne.Encoding
   alias AmqpOne.Transport
   alias AmqpOne.TypeManager.XML
+  alias AmqpOne.Test.TypeSpec
 
 
   test "null encoding" do
@@ -41,32 +42,6 @@ defmodule AmqpOne.Test.Encoding do
     book = AmqpOne.TypeManager.XML.convert_xml(tree) # |> IO.inspect
     Enum.zip(book.fields, book_type().fields) |> Enum.all?(fn{f,s} -> assert f == s end)
     assert book.descriptor == book_type.descriptor
-  end
-
-  defmodule TypeSpec do
-    require AmqpOne.TypeManager.XML, as: X
-
-    X.typespec("""
-    <t>
-      <type class="primitive" name="null" label="indicates an empty value">
-        <encoding code="0x40" category="fixed" width="0" label="the null value"/>
-      </type>
-    </t>)
-    """)
-    # The type_spec function for book
-    X.typespec("""
-    <t>
-      <type class="composite" name="book" label="example composite type">
-        <doc>
-          <p>An example composite type.</p>
-        </doc>
-        <descriptor name="example:book:list" code="0x00000003:0x00000002"/>
-        <field name="title" type="string" mandatory="true" label="title of the book"/>
-        <field name="authors" type="string" multiple="true"/>
-        <field name="isbn" type="string" label="the ISBN code for the book"/>
-      </type>
-    </t>
-    """)
   end
 
   test "type spec generation for null" do
@@ -194,6 +169,18 @@ defmodule AmqpOne.Test.Encoding do
     assert %{} = spec
     # Logger.debug "Spec is: #{inspect spec}"
     assert %Type{} = spec["begin"]
+  end
+
+  test "extract fields of a type" do
+    b_type =  book_type()
+    assert Map.has_key?(b_type, :fields)
+    fs = b_type.fields |> Enum.map(&XML.extract_field/1)
+    fs |> Enum.each(fn f -> assert f.name in [:isbn, :title, :authors] end )
+  end
+
+  test "use a frame struct" do
+    open = %AmqpOne.Test.TypeSpec.Open{}
+    assert open.container_id == nil
   end
 
   def url_value, do: "http://example.org/hello-world"
