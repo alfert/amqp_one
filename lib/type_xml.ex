@@ -203,14 +203,24 @@ defmodule AmqpOne.TypeManager.XML do
     |> Enum.map(fn {name, type} -> generate_struct type, __CALLER__.module end)
   end
 
+  defmacro add_frames_to_typemanager do
+    add_statements = frame_spec()
+    |> Enum.reject(fn entry -> entry == [] end)
+    |> Enum.map(fn {name, type} ->
+      t = Macro.escape(type)
+      quote do
+        AmqpOne.TypeManager.add_type(unquote(name), unquote(t))
+        AmqpOne.TypeManager.add_type(unquote(t))
+      end
+    end)
+  end
+
   @doc """
   Generate the typespecs from the XML specification.
   Returns the `type_spec` function which takes a type name as
   argument and returns the Elixir equivalent of the XML spec.
   """
   defmacro typespec(xml_string) do
-    caller = __CALLER__.module
-    Code.ensure_compiled(caller)
     {s, _} = Code.eval_quoted(xml_string)
     String.to_char_list(s)
     |> :xmerl_scan.string

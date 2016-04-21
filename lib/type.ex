@@ -44,9 +44,11 @@ defmodule AmqpOne.TypeManager do
   end
 
   def start_link() do
-    Agent.start_link(fn() ->
+    ret_val = Agent.start_link(fn() ->
       # use ETS default options: set, key on position 1, protected
       %__MODULE__{type_store: :ets.new(__MODULE__, [:named_table])} end, name: __MODULE__)
+    add_frame_types()
+    ret_val
   end
 
   def stop() do
@@ -77,5 +79,12 @@ defmodule AmqpOne.TypeManager do
     end
   end
 
+  @doc """
+  Adds all required frame type to the type manager. This function
+  must be called during startup of the type manager.
+  """
+  def add_frame_types() do
+    AmqpOne.Transport.Frame.init()
+  end
 
 end
