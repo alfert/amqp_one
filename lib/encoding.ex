@@ -18,7 +18,7 @@ defmodule AmqpOne.Encoding do
     do: <<0xb1, byte_size(bin) :: size(32)>> <> bin
 
 
-  def parse(<<0x4 :: size(4), type :: size(4), rest :: binary>>) do
+  def parse(<<0x4 :: size(4), type :: size(4), _rest :: binary>>) do
     [decode(<<0x4::size(4), type>>)]
   end
 
@@ -64,7 +64,7 @@ defmodule AmqpOne.Encoding do
     source_type = TypeManager.type_spec(t.source)
     [typed_encoder(value, t.descriptor), typed_encoder(value, source_type)]
   end
-  def typed_encoder(_value, [%Descriptor{name: name} = d], _in_array) do
+  def typed_encoder(_value, [%Descriptor{name: name} = _d], _in_array) do
     # constructor = 0, descriptor name as string
     # Logger.info "encode descriptor with name #{inspect name}"
     [<<0x0>>, typed_encoder(name, TypeManager.type_spec("symbol"))]
@@ -121,11 +121,11 @@ defmodule AmqpOne.Encoding do
         e = enc(t.encodings, 1)
         s = e.width * 8
         e.code <> <<value :: size(s)>>
-      x when not in_array ->
+      _ when not in_array ->
           e = uncompressed_encoding(t)
           s = e.width * 8
           e.code <> <<value :: size(s)>>
-      x ->
+      _ ->
           e = uncompressed_encoding(t)
           s = e.width * 8
           <<value :: size(s)>>
@@ -138,11 +138,11 @@ defmodule AmqpOne.Encoding do
         e = enc(t.encodings, 1)
         s = e.width * 8
         e.code <> <<value :: size(s)-signed>>
-      x when not in_array ->
+      _ when not in_array ->
           e = uncompressed_encoding(t)
           s = e.width * 8
           e.code <> <<value :: size(s)-signed>>
-      x  ->
+      _ ->
           e = uncompressed_encoding(t)
           s = e.width * 8
           <<value :: size(s)-signed>>
@@ -161,7 +161,7 @@ defmodule AmqpOne.Encoding do
     s = e.width * 8
     <<e.code, value :: size(s)-signed>>
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "double"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "double"}, in_array) do
     # float in Erlang/Elixir = double in IEEE 754
     if in_array, do: <<value :: float>>, else: <<0x82, value :: float>>
   end
@@ -171,10 +171,10 @@ defmodule AmqpOne.Encoding do
   def primitive_encoder(value, %Type{class: :primitive, name: "boolean"}, true) do
     if value == true, do: <<1 :: size(8)>>, else: <<0 :: size(8)>>
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "char"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "char"}, in_array) do
     if in_array, do: <<value :: utf32>>, else: <<0x73, value :: utf32>>
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "timestamp"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "timestamp"}, in_array) do
     # timestamp = 64 bit unsigned integer
     if in_array, do: <<value :: size(64)>>, else: <<0x83, value :: size(64)>>
   end
@@ -192,7 +192,7 @@ defmodule AmqpOne.Encoding do
         <<s :: integer-size(32)>> <> value
     end
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "list"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "list"}, in_array) do
     elems = value
     |> Enum.map(&(typed_encoder(&1, type_of(&1), false)))
     |> IO.iodata_to_binary
@@ -207,7 +207,7 @@ defmodule AmqpOne.Encoding do
       _x -> <<0xc0, size :: size(8), count :: size(8)>>  <> elems
     end
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "map"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "map"}, in_array) do
     elems = value
     |> Enum.map(fn {k, v} ->
       [typed_encoder(k, type_of(k), false), typed_encoder(v, type_of(v), false)] end)
@@ -223,7 +223,7 @@ defmodule AmqpOne.Encoding do
       _x -> <<0xc1, size :: size(8), count :: size(8)>>  <> elems
     end
   end
-  def primitive_encoder(value, %Type{class: :primitive, name: "array"} = t, in_array) do
+  def primitive_encoder(value, %Type{class: :primitive, name: "array"}, in_array) do
     type = List.first(value) |> type_of
     elems = value
     |> Enum.map(&(typed_encoder(&1, type, true)))
@@ -355,21 +355,22 @@ defmodule AmqpOne.Encoding do
   end
 
   def decode_map(value, count) do
-    {list, <<>>} = 1..(div(count, 2)) |>
+    {map, <<>>} = 1..(div(count, 2)) |>
     Enum.reduce({%{}, value}, fn _, {map, bytes} ->
       {key, rem1} = decode_bin(bytes)
       {value, remaining} = decode_bin(rem1)
       {Map.put(map, key, value), remaining}
     end)
+    map
   end
 
   def decode_array(con, size, count, value_bytes) do
-    if con == 0x00 do
-      {type, bin} = decode_bin(value_bytes)
-      <<value :: binary-size(size), rest :: binary>> = bin
+    {type, bin} = if con == 0x00 do
+      {t, b} = decode_bin(value_bytes)
     else
-      <<value :: binary-size(size), rest :: binary>> = value_bytes
+      {nil, value_bytes}
     end
+    <<value :: binary-size(size), rest :: binary>> = bin
     {list, <<>>} = 1..count |>
     Enum.reduce({[], value}, fn _, {l, bytes} ->
       {elem, remaining} = if con == 0x00 do
@@ -387,7 +388,7 @@ defmodule AmqpOne.Encoding do
     decode_bin(binary)
   end
   def typed_decoder(<<con, value_bin :: binary>>, %Type{class: :composite} = t) do
-    {size, count, values} = case con do
+    {_size, count, values} = case con do
       0xc0 ->
         <<s, c, vs :: binary>> = value_bin
         {s, c, vs}
@@ -406,12 +407,11 @@ defmodule AmqpOne.Encoding do
     type = TypeManager.type_spec(f.type)
     Logger.debug "field type = #{inspect type}"
     Logger.debug "Constructor = #{Integer.to_string(con, 16)}"
-
     is_array = f.multiple
-    {value, rest} = case con do
+    case con do
       x when x in [0xe0, 0xf0] and is_array -> decode_bin(field_bin)
-      x when not is_array -> decode_bin(<<con>>, value)
-      # array and not a multiple crashes, non-array and multiple also!
+      _ when not is_array -> decode_bin(<<con>>, value)
+      # array but not a multiple crashes, non-array and multiple also!
     end
   end
 
