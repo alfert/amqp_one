@@ -29,20 +29,22 @@ defmodule AmqpOne.Transport do
   # Types of AMQP frames
   @amqp_frame 0
 
-
   defstruct host: "localhost",
     port: 5672,
     options: [],
     socket_mod: AmqpOne.Transport.TcpSocket,
     socket: nil,
-    state: :start
+    state: :start,
+    connection_parameters: %Frame.Open{}
+
 
   @type t :: %__MODULE__{host: :inet.ip_address | :inet.hostname,
     port: :inet.port_number,
     options: :gen_tcp.connect_option,
     socket_mod: atom,
     socket: nil | :inet.socket,
-    state: conn_state_t
+    state: conn_state_t,
+    connection_parameters: Frame.Open.t
   }
 
   @doc """
@@ -168,11 +170,7 @@ defmodule AmqpOne.Transport do
     {:reply, :ok, %__MODULE__{state | socket: s, state: :hdr_exch}}
   end
   def handle_call({:open}, _from, state = %__MODULE__{}) do
-    {:ok, hostname} = :inet.gethostname()
-    frame = %Frame.Open{container_id: "AmqpOne", hostname: :hostname,
-      }
-    new_state = connection(state.state, frame, state)
-    {:reply, :ok, new_state}
+    {:reply, :ok, send_open(state, "Client")}
   end
   def handle_call({:close}, _from, state) do
     s = connection(state.state, %Frame.Close{}, state)
@@ -186,8 +184,25 @@ defmodule AmqpOne.Transport do
     ^socket = state.socket
     new_state = connection(state.state, {:tcp, decode_frame(data)}, state)
     Logger.info "handle_info: from #{state.state} to #{new_state.state}"
+    final_state = case new_state.state do
+      :open_rcvd -> send_open(state, "Server")
+      :close_pipe -> send_open(state, "Server")
+      :opened -> new_state # nothing to do, we wait for the client
+      _ -> new_state # nothing to do, we wait for the client
+    end
     AmqpOne.Transport.Socket.set_active_once(state.socket)
-    {:no_reply, new_state}
+    {:noreply, final_state}
+  end
+  def handle_info({:tcp_closed, socket}, state) do
+    Logger.info "handle_info: tcp_close at #{inspect state}"
+    {:stop, :normal, state}
+  end
+
+  def send_open(state = %__MODULE__{}, role) do
+    {:ok, hostname} = :inet.gethostname()
+    frame = %Frame.Open{container_id: "AmqpOne"<>role, hostname: :hostname,
+      max_frame_size: 1024*1024, channel_max: 10}
+    new_state = connection(state.state, frame, state)
   end
 
   @spec connection(conn_state_t, binary | any, t) :: t
@@ -200,12 +215,12 @@ defmodule AmqpOne.Transport do
   def connection(:hdr_sent, %Frame.Open{} = f, state) do
     # we are sending an open directly after the hdr: pipelining!
     AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :open_pipe
+    %__MODULE__{state | state: :open_pipe}
   end
   def connection(:hdr_sent, @amqp_header, state) do
     # we are compatible with the server, nice!
     AmqpOne.Transport.Socket.set_active_once(state.socket)
-    put_in state, :state, :hdr_exch
+    %__MODULE__{state | state: :hdr_exch}
   end
   def connection(:hdr_rcvd, {:tcp, header = @amqp_header}, state) do
     # this is currently a server state, our connection functions does
@@ -213,62 +228,68 @@ defmodule AmqpOne.Transport do
     :ok = AmqpOne.Transport.Socket.send(state.socket, header)
     AmqpOne.Transport.Socket.set_opts(state.socket, packet: 4)
     AmqpOne.Transport.Socket.set_active_once(state.socket)
-    put_in state, :state, :hdr_exch
+    Logger.info "AmpqOne Server: Header sucessfully exchanged. Wait for Open-Frame."
+    %__MODULE__{state | state: :hdr_exch}
   end
   def connection(:hdr_exch, %Frame.Open{} = f, state) do
+    Logger.info "Client: sending open frame"
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :open_sent
+    %__MODULE__{state | state: :open_sent}
   end
-  def connection(:hdr_exch, {:tcp, %Frame.Open{} = f}, state) do
-    Logger.info "Got an open frame: #{inspect f}"
-    put_in state, :state, :open_rcvd
+  # channel must be zero for opening a connection
+  def connection(:hdr_exch, {:tcp, {0, %Frame.Open{} = f}}, state) do
+    Logger.info "Server: Received an  an open frame: #{inspect f}"
+    %__MODULE__{state | state: :open_rcvd, connection_parameters: f}
   end
   def connection(:open_rcvd, %Frame.Open{}  = f, state) do
+    Logger.info "Got an internal open frame"
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :opened
+    %__MODULE__{state | state: :opened}
   end
-  def connection(:open_sent, {:tcp, %Frame.Open{} = f}, state) do
-    Logger.info "Got an open frame: #{inspect f}"
-    put_in state, :state, :opened
+  # channel must be zero for opening a connection
+  def connection(:open_sent, {:tcp, {0, %Frame.Open{} = f}}, state) do
+    Logger.info "Received an open frame: #{inspect f}"
+    %__MODULE__{state | state: :opened, connection_parameters: f}
   end
   def connection(:open_sent, %Frame.Close{} = f, state) do
     Logger.info "Got an internal close frame: #{inspect f}"
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :close_pipe
+    %__MODULE__{state | state: :close_pipe}
   end
   def connection(:opened, %Frame.Close{} = f, state) do
     Logger.info "Got an internal close frame: #{inspect f}"
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :close_sent
+    %__MODULE__{state | state: :close_sent}
   end
-  def connection(:open_sent, {:tcp, %Frame.Close{} = f}, state) do
+  # channel must be zero for closing a connection
+  def connection(:open_sent, {:tcp, {0, %Frame.Close{} = f}}, state) do
     Logger.info "Got an close frame: #{inspect f}"
-    put_in state, :state, :close_rcvd
+    %__MODULE__{state | state: :close_rcvd}
   end
-  def connection(:opened, some_frame, state) do
-    Logger.info "Got any AMQP frame: #{inspect some_frame}"
+  def connection(:opened, {channel, some_frame}, state) do
+    Logger.info "Got on channel #{channel} an AMQP frame: #{inspect some_frame}"
     Logger.error "We should send this frame to someone else"
     state
   end
-  def connection(:close_sent, {:tcp, %Frame.Close{} = f}, state) do
+  def connection(:close_sent, {:tcp, {0, %Frame.Close{} = f}}, state) do
     AmqpOne.Transport.Socket.close(state.socket)
-    put_in state, :state, :end
+    %__MODULE__{state | state: :end}
   end
   def connection(:close_rcvd, %Frame.Close{}= f, state) do
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
     AmqpOne.Transport.Socket.close(state.socket)
-    put_in state, :state, :end
+    %__MODULE__{state | state: :end}
   end
   def conncetion(:open_pipe, %Frame.Close{} = f, state) do
     :ok = AmqpOne.Transport.Socket.send(state.socket, encode_frame(f, 0))
-    put_in state, :state, :oc_pipe
+    %__MODULE__{state | state: :oc_pipe}
   end
   def conncetion(:open_pipe, @amqp_header, state) do
-    put_in state, :state, :open_sent
+    %__MODULE__{state | state: :open_sent}
   end
-  def conncetion(:close_pipe, {:tcp, %Frame.Open{} = f}, state) do
+  def conncetion(:close_pipe, {:tcp, {0, %Frame.Open{} = f}}, state) do
     Logger.info "Got an open frame: #{inspect f}"
-    put_in state, :state, :close_sent
+    %__MODULE__{state | state: :close_sent, connection_parameters: f}
   end
 
 
