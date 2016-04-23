@@ -160,7 +160,7 @@ defmodule AmqpOne.TypeManager.XML do
     quote do
       defmodule unquote(mod_name) do
         defstruct unquote(field_list)
-        @type t :: %unquote(mod_name){} # unquote(type_list)}
+        @type t :: %unquote(mod_name){} # {unquote(type_list)}
       end
     end
   end
@@ -171,11 +171,18 @@ defmodule AmqpOne.TypeManager.XML do
 
   def extract_field(%Field{name: n, type: t} = f) do
     name = n |> underscore |> String.to_atom
+    type = t |> underscore |> amqp_type
     value = case f do
       %Field{multiple: true} -> []
-      %Field{default: d} -> d
+      %Field{default: nil} -> nil
+      %Field{default: d} ->
+        if type in [:integer, :non_neg_integer, :pos_integer] do
+          {num, <<>>} = Integer.parse(d, 10)
+          num
+        else
+          d
+        end
     end
-    type = t |> underscore |> amqp_type
     %{name: name, value: value, type: type}
   end
 
