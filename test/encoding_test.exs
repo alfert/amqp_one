@@ -140,15 +140,6 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "adding types to type manager" do
-    # TM.stop()
-    # pre_tables = :ets.all()
-    # {:ok, pid} = TM.start_link()
-    # tables = :ets.all()
-    # assert length(pre_tables) < length(tables)
-    #
-    # t = Enum.reject(tables, &(Enum.member?(pre_tables, &1)) )
-    # assert [TM] == t
-
     TM.add_type("book", book_type())
     assert book_type() == TM.type_spec("book")
 
@@ -163,9 +154,8 @@ defmodule AmqpOne.Test.Encoding do
     data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
     #####
     #
-    # A Transfer frame is followed by data. Hmm, the interface
-    # must look different in Transport to encode and decode a frame
-    # properly.
+    # Frames are structs. They cannot be accessed via Map.fetch
+    # ==> Encoding strategies must be different.
     #
     #####
     trans = %Frame.Transfer{handle: 1}
