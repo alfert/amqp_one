@@ -11,22 +11,22 @@ defmodule AmqpOne.Test.Encoding do
 
 
   test "null encoding" do
-    null = AmqpOne.Encoding.encode(nil)
+    null = AmqpOne.Encoding.typed_encoder(nil, TM.type_spec("null"))
     assert nil == AmqpOne.Encoding.decode(null)
   end
 
   test "boolean encoding" do
-    bin_true = AmqpOne.Encoding.encode(true)
+    bin_true = AmqpOne.Encoding.typed_encoder(true, TM.type_spec("boolean"))
     assert true == AmqpOne.Encoding.decode(bin_true)
 
-    bin_false = AmqpOne.Encoding.encode(false)
+    bin_false = AmqpOne.Encoding.typed_encoder(false, TM.type_spec("boolean"))
     assert false == AmqpOne.Encoding.decode(bin_false)
   end
 
   test "small utf8 encoding" do
     s = "Hallo"
     expected = <<0xa1, 0x05>> <> s # , s :: utf8>>
-    bin = Encoding.encode_utf8(<<"Hallo">>)
+    bin = Encoding.typed_encoder(<<"Hallo">>, TM.type_spec("string"))
 
     assert expected == bin
   end
@@ -157,11 +157,21 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "Frame encoding" do
+    alias AmqpOne.Transport.Frame
     length = :random.uniform(50) - 1
     channel = :random.uniform(65636) -1
     data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
-    enc = Transport.encode_frame(data, channel)
-    assert {channel, data} == Transport.decode_frame(enc)
+    #####
+    #
+    # A Transfer frame is followed by data. Hmm, the interface
+    # must look different in Transport to encode and decode a frame
+    # properly.
+    #
+    #####
+    trans = %Frame.Transfer{handle: 1}
+    enc = Transport.encode_frame(channel, trans, data)
+    assert {^channel, value} = Transport.decode_frame(enc)
+    assert {^trans, ^data} = value
   end
 
   test "Frame type specification" do

@@ -7,17 +7,6 @@ defmodule AmqpOne.Encoding do
   alias AmqpOne.TypeManager
   alias AmqpOne.TypeManager.{Type, Encoding, Field, Descriptor, Choice}
 
-  @spec encode(any) :: binary
-  def encode(nil), do: <<0x40>>
-  def encode(true), do: <<0x41>>
-  def encode(false), do: <<0x42>>
-
-  def encode_utf8(bin) when is_binary(bin) and byte_size(bin) <=255,
-    do: <<0xa1, byte_size(bin) :: size(8)>> <>  bin
-  def encode_utf8(bin) when is_binary(bin),
-    do: <<0xb1, byte_size(bin) :: size(32)>> <> bin
-
-
   def parse(<<0x4 :: size(4), type :: size(4), _rest :: binary>>) do
     [decode(<<0x4::size(4), type>>)]
   end
@@ -71,8 +60,8 @@ defmodule AmqpOne.Encoding do
   end
   # fields cannot be in an array
   # mandatory null must be encoded explicitely
-  def typed_encoder(nil, %Field{mandatory: true}, false), do: encode(nil)
-  def typed_encoder(nil, %Field{mandatory: false}, false), do: [encode(nil)]
+  def typed_encoder(nil, %Field{mandatory: true}, false), do: <<0x40>>
+  def typed_encoder(nil, %Field{mandatory: false}, false), do: [<<0x40>>]
   def typed_encoder(value, %Field{multiple: true, type: type}, false) when is_list(value) do
     # encode an array of values
     t = TypeManager.type_spec(type)
@@ -108,7 +97,7 @@ defmodule AmqpOne.Encoding do
     |> Enum.max_by(fn e -> e.width end)
   end
 
-  def enc(encodings, width) do
+  defp enc(encodings, width) do
     Enum.find(encodings, fn e -> e.width==width end)
   end
 
@@ -165,8 +154,11 @@ defmodule AmqpOne.Encoding do
     # float in Erlang/Elixir = double in IEEE 754
     if in_array, do: <<value :: float>>, else: <<0x82, value :: float>>
   end
+  def primitive_encoder(nil, %Type{class: :primitive, name: "null"}, _in_array) do
+    <<0x40>>
+  end
   def primitive_encoder(value, %Type{class: :primitive, name: "boolean"}, false) do
-    encode(value)
+    if value == true, do: <<0x41>>, else: <<0x42>>
   end
   def primitive_encoder(value, %Type{class: :primitive, name: "boolean"}, true) do
     if value == true, do: <<1 :: size(8)>>, else: <<0 :: size(8)>>
