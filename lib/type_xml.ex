@@ -154,9 +154,7 @@ defmodule AmqpOne.TypeManager.XML do
     type_list = fs
     |> Enum.map(fn f -> {f.name, f.type} end)
     |> Enum.map(fn {n, t} -> quote do unquote(n) :: unquote(t) end end)
-    mod_name = Atom.to_string(parent_mod) <>
-      "." <> (t.name |> String.capitalize)
-    |> String.to_atom
+    mod_name = struct_name(t.name, parent_mod)
     quote do
       defmodule unquote(mod_name) do
         defstruct unquote(field_list)
@@ -169,12 +167,20 @@ defmodule AmqpOne.TypeManager.XML do
     []
   end
 
+  def struct_name(name, parent_mod) do
+    Atom.to_string(parent_mod) <>
+      "." <> (name |> String.capitalize)
+    |> String.to_atom
+  end
+
   def extract_field(%Field{name: n, type: t} = f) do
     name = n |> underscore |> String.to_atom
     type = t |> underscore |> amqp_type
     value = case f do
       %Field{multiple: true} -> []
       %Field{default: nil} -> nil
+      %Field{default: "true"} when type == :boolean -> true
+      %Field{default: "false"} when type == :boolean -> false
       %Field{default: d} ->
         if type in [:integer, :non_neg_integer, :pos_integer] do
           {num, <<>>} = Integer.parse(d, 10)
@@ -215,9 +221,12 @@ defmodule AmqpOne.TypeManager.XML do
     |> Enum.reject(fn entry -> entry == [] end)
     |> Enum.map(fn {name, type} ->
       t = Macro.escape(type)
+      s = struct_name(type.name, __CALLER__.module)
+      struct = Macro.escape(s)
       quote do
         AmqpOne.TypeManager.add_type(unquote(name), unquote(t))
         AmqpOne.TypeManager.add_type(unquote(t))
+        AmqpOne.TypeManager.add_type(unquote(struct), unquote(t))
       end
     end)
   end
