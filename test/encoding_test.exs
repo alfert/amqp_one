@@ -151,15 +151,10 @@ defmodule AmqpOne.Test.Encoding do
     alias AmqpOne.Transport.Frame
     length = :random.uniform(50) - 1
     channel = :random.uniform(65636) -1
-    data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
-    #####
-    #
-    # Frames are structs. They cannot be accessed via Map.fetch
-    # ==> Encoding strategies must be different.
-    #
-    #####
+    # data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
+    data = "Hello AMQP! This is Elixir!"
     trans = %Frame.Transfer{handle: 1}
-    enc = Transport.encode_frame(channel, trans, data)
+    enc = Transport.encode_frame(channel, trans, data) |> IO.iodata_to_binary
     assert {^channel, value} = Transport.decode_frame(enc)
     assert {^trans, ^data} = value
   end

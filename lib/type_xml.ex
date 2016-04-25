@@ -54,7 +54,7 @@ defmodule AmqpOne.TypeManager.XML do
   end
   def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
     attrs = xmlElement(field, :attributes) |> Enum.map(&convert_xml/1)
-    name = String.to_atom(attrs[:name])
+    name = normalize_fieldname(attrs[:name])
     type = attrs[:type]
     %Field{name: name, label: attrs[:label], type: type,
       requires: attrs[:requires], default: attrs[:default],
@@ -179,7 +179,7 @@ defmodule AmqpOne.TypeManager.XML do
   end
 
   def extract_field(%Field{name: n, type: t} = f) do
-    name = n |> underscore |> String.to_atom
+    name = n |> normalize_fieldname
     type = t |> underscore |> amqp_type
     value = case f do
       %Field{multiple: true} -> []
@@ -195,6 +195,10 @@ defmodule AmqpOne.TypeManager.XML do
         end
     end
     %{name: name, value: value, type: type}
+  end
+
+  def normalize_fieldname(name) do
+    name |> underscore |> String.to_atom
   end
 
   def underscore(a) when is_atom(a) do

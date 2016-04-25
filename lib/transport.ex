@@ -21,6 +21,10 @@ defmodule AmqpOne.Transport do
     :open_sent | :opened | :open_pipe | :oc_pipe | :close_pipe |
     :close_sent | :close_rcvd | :end | :hdr_exch | :waiting
 
+  @type frame_t :: Frame.Open.t | Frame.Begin.t | Frame.Attach.t |
+    Frame.Flow.t | Frame.Transfer.t | Frame.Disposition.t |
+    Frame.Detach.t | Frame.End.t | Frame.Close.t
+
   @typedoc "The connection reference"
   @opaque conn_t :: pid
 
@@ -35,7 +39,7 @@ defmodule AmqpOne.Transport do
     socket_mod: AmqpOne.Transport.TcpSocket,
     socket: nil,
     state: :start,
-    connection_parameters: %Frame.Open{}
+    connection_parameters: nil
 
 
   @type t :: %__MODULE__{host: :inet.ip_address | :inet.hostname,
@@ -86,13 +90,17 @@ defmodule AmqpOne.Transport do
   Encodes the internal representation of a frame to a proper
   binary encoded AMQP 1.0 frame
   """
-  @spec encode_frame(any, non_neg_integer) :: binary
-  def encode_frame(frame, channel) when is_integer(channel) and channel < 65636 do
-    payload = :erlang.term_to_binary(frame)
-    << 2 :: integer,
+  @spec encode_frame(non_neg_integer, frame_t, binary) :: iodata
+  def encode_frame(channel, frame, payload \\ <<>>) when is_integer(channel) and channel < 65636 do
+    #payload = :erlang.term_to_binary(frame)
+    type = AmqpOne.TypeManager.type_spec(frame)
+    frame_bin = AmqpOne.Encoding.typed_encoder(frame, type) |> IO.iodata_to_binary
+    [<< 2 :: integer,
       @amqp_frame :: integer,
       channel ::size(16)-integer,
-      payload :: binary>>
+      frame_bin :: binary>>,
+      payload
+    ]
   end
 
   @doc """
@@ -110,7 +118,8 @@ defmodule AmqpOne.Transport do
       @amqp_frame ->
         ext_header_size = 4*doff - 8
         <<_ignore_header :: binary-size(ext_header_size), frame :: binary>> = rest
-        value = :erlang.binary_to_term(frame)
+        #value = :erlang.binary_to_term(frame)
+        value = AmqpOne.Encoding.decode_bin(frame)
         {channel, value}
       any_type ->
         Logger.error "Unknwon frame type #{any_type}"
