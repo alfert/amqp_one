@@ -36,7 +36,7 @@ defmodule AmqpOne.Encoding do
         else: typed_encoder(value, t.descriptor)
     field_count = Enum.count(t.fields)
     list_elements = t.fields |> Enum.map(fn(field) ->
-      val = value[field.name]
+      val = Map.fetch!(value, field.name)
       # Logger.debug "Encode field #{inspect field.name} with value #{inspect val}"
       typed_encoder(val, field)
     end)
