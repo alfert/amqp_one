@@ -36,6 +36,12 @@ defmodule AmqpOne.TypeManager do
   # Generate the primitives types
   XML.typespec AmqpOne.TypeManager.XML.xml_spec()
   # this must always be the last resort: We do not find a type and return nil
+  def type_spec(%{__struct__: name}) do
+    case :ets.lookup(__MODULE__, name) do
+      [] -> nil
+      [{^name, type}] -> type
+    end
+  end
   def type_spec(name) do
     case :ets.lookup(__MODULE__, name) do
       [] -> nil
@@ -56,6 +62,11 @@ defmodule AmqpOne.TypeManager do
   end
 
   @doc "Adds a type with an explicit name"
+  def add_type(%{__struct__: name}, %Type{} = t) do
+    Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
+      true = :ets.insert(ts, {name, t})
+    end)
+  end
   def add_type(name, %Type{} = t) do
     Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
       true = :ets.insert(ts, {name, t})
