@@ -51,7 +51,11 @@ defmodule AmqpOne.Encoding do
   def typed_encoder(value, %Type{class: :restricted, choices: nil} = t, _in_array) do
     # no choices means no enumaration, but a subtype of an existing type
     source_type = TypeManager.type_spec(t.source)
-    [typed_encoder(value, t.descriptor), typed_encoder(value, source_type)]
+    if t.descriptor == nil do
+      [typed_encoder(value, source_type)]
+    else
+      [typed_encoder(value, t.descriptor), typed_encoder(value, source_type)]
+    end
   end
   def typed_encoder(_value, [%Descriptor{name: name} = _d], _in_array) do
     # constructor = 0, descriptor name as string

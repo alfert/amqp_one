@@ -49,6 +49,7 @@ defmodule AmqpOne.TypeManager.XML do
     # IO.puts "convert_xml: type #{inspect name}"
     %Type{name: name, label: attrs[:label], class: attrs[:class],
       encodings: children[:enc], fields: children[:field], choices: children[:choice],
+      source: attrs[:source],
       descriptor: children[:desc]}
   end
   def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
@@ -87,6 +88,10 @@ defmodule AmqpOne.TypeManager.XML do
   def convert_xml(attr) when is_record(attr, :xmlAttribute) and
         xmlAttribute(attr, :name) == :category do
     {:category, xmlAttribute(attr, :value) |> List.to_atom}
+  end
+  def convert_xml(attr) when is_record(attr, :xmlAttribute) and
+        xmlAttribute(attr, :name) == :source do
+    {:source,"#{xmlAttribute(attr, :value)}"}
   end
   def convert_xml(attr) when is_record(attr, :xmlAttribute) and
     xmlAttribute(attr, :value) == 'true' do
