@@ -180,7 +180,7 @@ defmodule AmqpOne.TypeManager.XML do
   def struct_name(name, parent_mod) do
     Atom.to_string(parent_mod) <>
       "." <> (name |> String.capitalize)
-    |> String.to_atom
+    |> normalize_fieldname
   end
 
   def extract_field(%Field{name: n, type: t} = f) do
@@ -237,10 +237,19 @@ defmodule AmqpOne.TypeManager.XML do
       t = Macro.escape(type)
       s = struct_name(type.name, __CALLER__.module)
       struct = Macro.escape(s)
-      quote do
-        AmqpOne.TypeManager.add_type(unquote(name), unquote(t))
-        AmqpOne.TypeManager.add_type(unquote(t))
-        AmqpOne.TypeManager.add_type(unquote(struct), unquote(t))
+      if type.class == :composite do
+        # IO.puts "add frame #{inspect type}"
+        IO.puts "the struct name is: #{inspect s}"
+        quote do
+          AmqpOne.TypeManager.add_type(unquote(name), unquote(t))
+          AmqpOne.TypeManager.add_type(unquote(t))
+          AmqpOne.TypeManager.add_type(%unquote(struct){}, unquote(t))
+        end
+      else
+        quote do
+          AmqpOne.TypeManager.add_type(unquote(name), unquote(t))
+          AmqpOne.TypeManager.add_type(unquote(t))
+        end
       end
     end)
   end

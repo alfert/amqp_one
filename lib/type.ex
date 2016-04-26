@@ -20,6 +20,7 @@ defmodule AmqpOne.TypeManager do
   alias AmqpOne.TypeManager.XML
   require AmqpOne.TypeManager.XML
   alias AmqpOne.TypeManager.{Type, Field, Descriptor, Encoding, Choice}
+  require Logger
 
   @type class_t :: :primitive | :composite | :restricted | :union
   @type category_t :: :fixed | :variable | :compound | :array
@@ -52,7 +53,7 @@ defmodule AmqpOne.TypeManager do
 
   @doc """
   Identifies the struct for the (complex) type, if it is registered
-  with the type. 
+  with the type.
   """
   @spec struct_for_type(Type.t) :: %{__struct__: atom} | nil
   def struct_for_type(type) do
@@ -83,13 +84,15 @@ defmodule AmqpOne.TypeManager do
   Adds a type with an explicit name. For structs, the struct and the type
   are also registered in the struct store.
   """
-  def add_type(%{__struct__: name}, %Type{} = t) do
+  def add_type(%{__struct__: name} = s, %Type{} = t) do
+    #Logger.info "add struct #{name} = #{inspect s} for type #{t.name}"
     Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts, struct_store: ss}) ->
       true = :ets.insert(ts, {name, t})
-      true = :ets.insert(ss, {t, name})
+      true = :ets.insert(ss, {t, s})
     end)
   end
   def add_type(name, %Type{} = t) do
+    #Logger.info "add with #{name} the type #{t.name}"
     Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
       true = :ets.insert(ts, {name, t})
     end)

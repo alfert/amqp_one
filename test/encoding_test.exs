@@ -182,7 +182,7 @@ defmodule AmqpOne.Test.Encoding do
     type = TM.type_spec("open")
     struct = TM.struct_for_type(type)
 
-    assert struct = %AmqpOne.Transport.Frame.Open{}
+    assert %AmqpOne.Transport.Frame.Open{} = struct
   end
 
   def url_value, do: "http://example.org/hello-world"
