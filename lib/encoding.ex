@@ -392,9 +392,13 @@ defmodule AmqpOne.Encoding do
         <<s :: size(32), c :: size(32), vs :: binary>> = value_bin
         {s, c, vs}
     end
+    initial_value = case TypeManager.struct_for_type(t) do
+      nil -> %{} # unknown struct
+      s   -> s
+    end
     t.fields
     |> Stream.take(count)
-    |> Enum.reduce({%{}, values}, fn field, {map, bin} ->
+    |> Enum.reduce({initial_value, values}, fn field, {map, bin} ->
       {field_val, rest} = typed_decoder(bin, field)
       {Map.put(map, field.name, field_val), rest}
     end)
