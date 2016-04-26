@@ -24,8 +24,9 @@ defmodule AmqpOne.TypeManager do
   @type class_t :: :primitive | :composite | :restricted | :union
   @type category_t :: :fixed | :variable | :compound | :array
 
-  defstruct [:type_store]
-  @ets_name __MODULE__
+  defstruct [:type_store, :struct_store]
+  @type_ets_name AmqpOne.TypeManager.Types
+  @struct_ets_name AmqpOne.TypeManager.Structs
 
 
   @doc """
@@ -37,22 +38,39 @@ defmodule AmqpOne.TypeManager do
   XML.typespec AmqpOne.TypeManager.XML.xml_spec()
   # this must always be the last resort: We do not find a type and return nil
   def type_spec(%{__struct__: name}) do
-    case :ets.lookup(__MODULE__, name) do
+    case :ets.lookup(@type_ets_name, name) do
       [] -> nil
       [{^name, type}] -> type
     end
   end
   def type_spec(name) do
-    case :ets.lookup(__MODULE__, name) do
+    case :ets.lookup(@type_ets_name, name) do
       [] -> nil
       [{^name, type}] -> type
     end
   end
 
+  @doc """
+  Identifies the struct for the (complex) type, if it is registered
+  with the type. 
+  """
+  @spec struct_for_type(Type.t) :: %{__struct__: atom} | nil
+  def struct_for_type(type) do
+    case :ets.lookup(@struct_ets_name, type) do
+      [] -> nil
+      [{^type, struct}] -> struct
+    end
+  end
+
+
   def start_link() do
     ret_val = Agent.start_link(fn() ->
       # use ETS default options: set, key on position 1, protected
-      %__MODULE__{type_store: :ets.new(__MODULE__, [:named_table])} end, name: __MODULE__)
+      %__MODULE__{
+        type_store: :ets.new(@type_ets_name, [:named_table]),
+        struct_store: :ets.new(@struct_ets_name, [:named_table])
+        } end,
+        name: __MODULE__)
     add_frame_types()
     ret_val
   end
@@ -61,10 +79,14 @@ defmodule AmqpOne.TypeManager do
     Agent.stop(__MODULE__, :normal)
   end
 
-  @doc "Adds a type with an explicit name"
+  @doc """
+  Adds a type with an explicit name. For structs, the struct and the type
+  are also registered in the struct store.
+  """
   def add_type(%{__struct__: name}, %Type{} = t) do
-    Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
+    Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts, struct_store: ss}) ->
       true = :ets.insert(ts, {name, t})
+      true = :ets.insert(ss, {t, name})
     end)
   end
   def add_type(name, %Type{} = t) do
@@ -88,6 +110,10 @@ defmodule AmqpOne.TypeManager do
       nil -> [t.name]
       [%Descriptor{name: n, code: c}] -> [n, c]
     end
+  end
+
+  def function_name do
+
   end
 
   @doc """
