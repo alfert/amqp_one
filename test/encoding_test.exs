@@ -222,7 +222,7 @@ defmodule AmqpOne.Test.Encoding do
 
   def book_type() do
     spec = %Type{name: "book", class: :composite, label: "example composite type",
-      descriptor: [%Descriptor{name: "example:book:list", code: "0x00000003:0x00000002"}],
+      descriptor: [%Descriptor{name: "example:book:list", code: 0x0000000300000002}],
       fields: [
         %Field{name: :title, type: "string", mandatory: true, label: "title of the book"},
         %Field{name: :authors, type: "string", multiple: true},

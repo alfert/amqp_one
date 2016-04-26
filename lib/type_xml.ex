@@ -62,7 +62,12 @@ defmodule AmqpOne.TypeManager.XML do
   end
   def convert_xml(desc) when is_record(desc, :xmlElement) and xmlElement(desc, :name) == :descriptor do
     attrs = xmlElement(desc, :attributes) |> Enum.map(&convert_xml/1)
-    %Descriptor{name: attrs[:name], code: attrs[:code]}
+    # code is an element of two 32 bit numbers, separated by a colon.
+    {code, <<>>} = attrs[:code]
+    |> String.replace("0x", "")
+    |> String.replace(":", "")
+    |> Integer.parse(16)
+    %Descriptor{name: attrs[:name], code: code}
   end
   def convert_xml(choice) when is_record(choice, :xmlElement) and xmlElement(choice, :name) == :choice do
     attrs = xmlElement(choice, :attributes) |> Enum.map(&convert_xml/1)
