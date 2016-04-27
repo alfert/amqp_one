@@ -314,7 +314,7 @@ defmodule AmqpOne.Encoding do
   def decode_bin(<<0xb1>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
   # symbols
   def decode_bin(<<0xa3>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
-  def decode_bin(<<0xb4>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  def decode_bin(<<0xb3>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
   # lists
   def decode_bin(<<0x45>>, rest), do: {[], rest}
   def decode_bin(<<0xc0>>, <<size :: integer, count :: integer, val :: binary-size(size), rest :: binary>>),
