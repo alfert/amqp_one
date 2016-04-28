@@ -341,6 +341,7 @@ defmodule AmqpOne.Encoding do
     typed_decoder(value_bin, type)
   end
 
+  def decode_list(value, 0), do: {[], value}
   def decode_list(value, count) do
     {list, <<>>} = 1..count |>
     Enum.reduce({[], value}, fn _, {l, bytes} ->
@@ -350,6 +351,7 @@ defmodule AmqpOne.Encoding do
     Enum.reverse list
   end
 
+  def decode_map(value, 0), do: {%{}, value}
   def decode_map(value, count) do
     {map, <<>>} = 1..(div(count, 2)) |>
     Enum.reduce({%{}, value}, fn _, {map, bytes} ->
@@ -360,7 +362,9 @@ defmodule AmqpOne.Encoding do
     map
   end
 
+  def decode_array(_con, _size, 0, <<>>=value_bytes), do: {[], value_bytes}
   def decode_array(con, size, count, value_bytes) do
+    Logger.debug "decode array: size= #{size}, count = #{count}"
     {type, bin} = if con == 0x00 do
       {t, b} = decode_bin(value_bytes)
     else
