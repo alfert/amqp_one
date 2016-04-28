@@ -129,7 +129,8 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "encoder for arrays" do
-    test_values = %{[1, 2] => <<0xe0, 2*8, 2, 0x80, 1 :: size(64), 2 :: size(64)>>}
+    test_values = %{[1, 2] => <<0xe0, 2*8, 2, 0x80, 1 :: size(64), 2 :: size(64)>>,
+      [] => <<0xe0, 0, 0, 0x40>>}
     type = TM.type_spec("array")
     test_values
     |> Enum.each(fn {l, e} ->
