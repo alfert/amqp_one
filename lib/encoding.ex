@@ -37,7 +37,7 @@ defmodule AmqpOne.Encoding do
     field_count = Enum.count(t.fields)
     list_elements = t.fields |> Enum.map(fn(field) ->
       val = Map.fetch!(value, field.name)
-      # Logger.debug "Encode field #{inspect field.name} with value #{inspect val}"
+      Logger.debug "Encode field #{inspect field.name} with value #{inspect val}"
       typed_encoder(val, field)
     end)
     field_size = IO.iodata_length(list_elements)
@@ -49,7 +49,7 @@ defmodule AmqpOne.Encoding do
     [con, list_con, list_elements]
   end
   def typed_encoder(value, %Type{class: :restricted, choices: nil} = t, _in_array) do
-    # no choices means no enumaration, but a subtype of an existing type
+    # no choices means no enumeration, but a subtype of an existing type
     source_type = TypeManager.type_spec(t.source)
     if t.descriptor == nil do
       [typed_encoder(value, source_type)]
@@ -68,7 +68,7 @@ defmodule AmqpOne.Encoding do
   def typed_encoder(nil, %Field{mandatory: false}, false), do: [<<0x40>>]
   def typed_encoder(value, %Field{multiple: true, type: type}, false) when is_list(value) do
     # encode an array of values
-    t = TypeManager.type_spec(type)
+    t = TypeManager.type_spec(type) |> encoding_type
     elems = value
     |> Enum.map(&(typed_encoder(&1, t, true)))
     |> IO.iodata_to_binary
@@ -100,6 +100,16 @@ defmodule AmqpOne.Encoding do
     t.encodings
     |> Enum.max_by(fn e -> e.width end)
   end
+
+  @doc """
+  Returns the encodable type, i.e. wanders the paths of restricted types
+  along
+  """
+  def encoding_type(%Type{class: :restricted, choices: nil} = t) do
+    t1 = TypeManager.type_spec(t.source)
+    encoding_type(t1)
+  end
+  def encoding_type(%Type{} = t), do: t
 
   defp enc(encodings, width) do
     Enum.find(encodings, fn e -> e.width==width end)
@@ -362,7 +372,8 @@ defmodule AmqpOne.Encoding do
     map
   end
 
-  def decode_array(_con, _size, 0, <<>>=value_bytes), do: {[], value_bytes}
+  def decode_array(_con, _size, 0, <<>> = value_bytes), do: {[], value_bytes}
+  def decode_array(_con, _size, 0, value_bytes ), do: {[], value_bytes}
   def decode_array(con, size, count, value_bytes) do
     Logger.debug "decode array: size= #{size}, count = #{count}"
     {type, bin} = if con == 0x00 do
@@ -373,11 +384,12 @@ defmodule AmqpOne.Encoding do
     <<value :: binary-size(size), rest :: binary>> = bin
     {list, <<>>} = 1..count |>
     Enum.reduce({[], value}, fn _, {l, bytes} ->
-      {elem, remaining} = if con == 0x00 do
-        typed_decoder(bytes, type)
-      else
-        decode_bin(<<con>>, bytes)
-      end
+      {elem, remaining} =
+        if con == 0x00 do
+          typed_decoder(bytes, type)
+        else
+          decode_bin(<<con>>, bytes)
+        end
       {[elem | l], remaining}
     end)
     {Enum.reverse(list), rest}
@@ -408,11 +420,13 @@ defmodule AmqpOne.Encoding do
     end)
   end
   def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
-    type = TypeManager.type_spec(f.type)
-    Logger.debug "field type = #{inspect type}"
-    Logger.debug "Constructor = #{Integer.to_string(con, 16)}"
+    type = TypeManager.type_spec(f.type) |> encoding_type
+    Logger.debug "field is = #{inspect f}"
+    Logger.debug "effective type = #{inspect type}"
+    Logger.debug "Constructor = 0x#{Integer.to_string(con, 16)}"
     is_array = f.multiple
     case con do
+      _ when is_array and value == "" -> nil
       x when x in [0xe0, 0xf0] and is_array -> decode_bin(field_bin)
       _ when not is_array -> decode_bin(<<con>>, value)
       # array but not a multiple crashes, non-array and multiple also!

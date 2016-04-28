@@ -140,6 +140,20 @@ defmodule AmqpOne.Test.Encoding do
     end)
   end
 
+  test "decoder for arrays" do
+    test_values = %{<<0xe0, 2*8, 2, 0x80, 1 :: size(64), 2 :: size(64)>> => [1, 2],
+      <<0xe0, 0, 0, 0x40>> => []}
+    type = TM.type_spec("array")
+    test_values
+    |> Enum.each(fn {l, e} ->
+      assert type.class == :primitive
+      {encoded, rest} = Encoding.typed_decoder(l, type)
+      assert encoded == e
+      assert rest == ""
+    end)
+  end
+
+
   test "adding types to type manager" do
     TM.add_type("book", book_type())
     assert book_type() == TM.type_spec("book")
@@ -150,12 +164,13 @@ defmodule AmqpOne.Test.Encoding do
 
   test "Frame encoding" do
     alias AmqpOne.Transport.Frame
-    length = :random.uniform(50) - 1
     channel = :random.uniform(65636) -1
+    # length = :random.uniform(50) - 1
     # data = 1..length |> Enum.map(fn _ -> :random.uniform() end)
     data = "Hello AMQP! This is Elixir!"
     trans = %Frame.Transfer{handle: 1}
     enc = Transport.encode_frame(channel, trans, data) |> IO.iodata_to_binary
+    Logger.info "encoded frame is : #{inspect enc}"
     assert {^channel, value} = Transport.decode_frame(enc)
     assert {^trans, ^data} = value
   end
@@ -184,6 +199,15 @@ defmodule AmqpOne.Test.Encoding do
     struct = TM.struct_for_type(type)
 
     assert %AmqpOne.Transport.Frame.Open{} = struct
+  end
+
+  test "Encode a frame" do
+    open_frame = %AmqpOne.Transport.Frame.Open{container_id: "Testing"}
+    [bin, <<>>] = Transport.encode_frame(0, open_frame)
+
+    {0, {frame, ""}} = Transport.decode_frame(bin)
+
+    assert open_frame == frame
   end
 
   def url_value, do: "http://example.org/hello-world"
