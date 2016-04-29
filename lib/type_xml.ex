@@ -50,9 +50,13 @@ defmodule AmqpOne.TypeManager.XML do
       nil -> []
       s when is_binary(s) -> String.split(s, ",")
     end
+    enc = case children[:enc] do
+      nil -> []
+      encs -> encs
+    end
     # IO.puts "convert_xml: type #{inspect name}"
     %Type{name: name, label: attrs[:label], class: attrs[:class],
-      encodings: children[:enc], fields: children[:field], choices: children[:choice],
+      encodings: enc, fields: children[:field], choices: children[:choice],
       source: attrs[:source], provides: provides,
       descriptor: children[:desc]}
   end

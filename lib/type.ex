@@ -1,5 +1,5 @@
-defmodule AmqpOne.TypeManager.Type, do: defstruct [:name, :class, :label, :encodings,
-    :doc, :fields, :choices, :descriptor, :source, provides: [] ]
+defmodule AmqpOne.TypeManager.Type, do: defstruct [:name, :class, :label,
+    :doc, :fields, :choices, :descriptor, :source, provides: [], encodings: []]
 defmodule AmqpOne.TypeManager.Encoding, do: defstruct [:name, :code, :category, :label, :width]
 defmodule AmqpOne.TypeManager.Descriptor, do: defstruct [:name, :code]
 defmodule AmqpOne.TypeManager.Field, do:
