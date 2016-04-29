@@ -1,10 +1,10 @@
-defmodule AmqpOne.TypeManager.Type, do: defstruct [:name, :class, :provides, :label, :encodings,
-    :doc, :fields, :choices, :descriptor, :source]
+defmodule AmqpOne.TypeManager.Type, do: defstruct [:name, :class, :label, :encodings,
+    :doc, :fields, :choices, :descriptor, :source, provides: [] ]
 defmodule AmqpOne.TypeManager.Encoding, do: defstruct [:name, :code, :category, :label, :width]
 defmodule AmqpOne.TypeManager.Descriptor, do: defstruct [:name, :code]
 defmodule AmqpOne.TypeManager.Field, do:
-  defstruct [:name, :type, :requires, :default, :label, mandatory: false,
-    multiple: false]
+  defstruct [:name, :type, :default, :label, mandatory: false,
+    multiple: false, requires: []]
 defmodule AmqpOne.TypeManager.Choice, do: defstruct [:name, :value, :doc]
 
 defmodule AmqpOne.TypeManager do

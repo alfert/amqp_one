@@ -46,18 +46,26 @@ defmodule AmqpOne.TypeManager.XML do
     attrs = xmlElement(type, :attributes) |> Enum.map(&convert_xml/1)
     children = xmlElement(type, :content) |> Enum.map(&convert_xml/1) |> collect_children
     name = attrs[:name]
+    provides = case attrs[:provides] do
+      nil -> []
+      s when is_binary(s) -> String.split(s, ",")
+    end
     # IO.puts "convert_xml: type #{inspect name}"
     %Type{name: name, label: attrs[:label], class: attrs[:class],
       encodings: children[:enc], fields: children[:field], choices: children[:choice],
-      source: attrs[:source],
+      source: attrs[:source], provides: provides,
       descriptor: children[:desc]}
   end
   def convert_xml(field) when is_record(field, :xmlElement) and xmlElement(field, :name) == :field do
     attrs = xmlElement(field, :attributes) |> Enum.map(&convert_xml/1)
     name = normalize_fieldname(attrs[:name])
+    requires = case attrs[:requires] do
+      nil -> []
+      s when is_binary(s) -> String.split(s, ",")
+    end
     type = attrs[:type]
     %Field{name: name, label: attrs[:label], type: type,
-      requires: attrs[:requires], default: attrs[:default],
+      requires: requires, default: attrs[:default],
       mandatory: boolean(attrs[:mandatory]), multiple: boolean(attrs[:multiple])}
   end
   def convert_xml(desc) when is_record(desc, :xmlElement) and xmlElement(desc, :name) == :descriptor do
@@ -149,9 +157,9 @@ defmodule AmqpOne.TypeManager.XML do
   Converts the Frame specification (`amqp-core-transport-v1.0-os.xml`) into
   the type definition
   """
-  @spec frame_spec() :: %{String.t => Type.t}
-  def frame_spec() do
-    File.read!("spec/amqp-core-v1/amqp-core-transport-v1.0-os.xml")
+  @spec frame_spec(String.t) :: %{String.t => Type.t}
+  def frame_spec(file) do
+    File.read!("spec/amqp-core-v1/" <> file)
     |> String.to_char_list
     |> :xmerl_scan.string
     |> convert_xml
@@ -159,7 +167,7 @@ defmodule AmqpOne.TypeManager.XML do
 
   def generate_struct(%Type{class: :composite} = t, parent_mod) do
     IO.puts "Found comp type #{t.name}"
-    fs = t.fields |> Enum.map(&extract_field/1)
+    fs = if t.fields == nil, do: [], else: t.fields |> Enum.map(&extract_field/1)
     field_list = fs |> Enum.map(fn f -> {f.name, f.value} end)
     type_list = fs
     |> Enum.map(fn f -> {f.name, f.type} end)
@@ -224,14 +232,14 @@ defmodule AmqpOne.TypeManager.XML do
   def amqp_type(i) when i in ["byte", "short", "int", "long", "timestamp"], do: :integer
   def amqp_type(any_other_type), do: String.to_atom(any_other_type)
 
-  defmacro frame_structs do
-    frame_spec()
+  defmacro frame_structs(file) do
+    frame_spec(file)
     |> Enum.reject(fn entry -> entry == [] end)
     |> Enum.map(fn {name, type} -> generate_struct type, __CALLER__.module end)
   end
 
-  defmacro add_frames_to_typemanager do
-    add_statements = frame_spec()
+  defmacro add_frames_to_typemanager(file) do
+    add_statements = frame_spec(file)
     |> Enum.reject(fn entry -> entry == [] end)
     |> Enum.map(fn {name, type} ->
       t = Macro.escape(type)

@@ -419,9 +419,27 @@ defmodule AmqpOne.Encoding do
       {Map.put(map, field.name, field_val), rest}
     end)
   end
-  def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
-    type = TypeManager.type_spec(f.type) |> encoding_type
+  def typed_decoder(<<con, value :: binary>> = field_bin, %Field{type: "*"} = f) do
     Logger.debug "field is = #{inspect f}"
+    # Type "*" means that any value is allowed,
+    # but with a potential constraint from the requires-attributes, defining
+    # the set of allowed types. I am not sure, how a static pascal-like type
+    # system should handle this, but in Elixir we do not have too many problems.
+    type = f.requires
+    |> Stream.map(fn t -> TypeManager.type_spec(t) |> encoding_type end)
+    |> Stream.map(fn t ->
+      if Enum.find_value(t.encodings, nil, fn e -> e.code == con end) == nil,
+      do: nil, else: t
+    end)
+    |> Enum.reject(&(&1 == nil))
+    case type do
+      [] -> decode_bin(field_bin)
+      [t] -> typed_decoder(field_bin, t)
+    end
+  end
+  def typed_decoder(<<con, value :: binary>> = field_bin, %Field{} = f) do
+    Logger.debug "field is = #{inspect f}"
+    type = TypeManager.type_spec(f.type) |> encoding_type
     Logger.debug "effective type = #{inspect type}"
     Logger.debug "Constructor = 0x#{Integer.to_string(con, 16)}"
     is_array = f.multiple
