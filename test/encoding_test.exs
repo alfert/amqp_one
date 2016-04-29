@@ -201,7 +201,14 @@ defmodule AmqpOne.Test.Encoding do
     assert %AmqpOne.Transport.Frame.Open{} = struct
   end
 
-  test "Encode a frame" do
+  test "find provided types" do
+    types = TM.type_spec("delivery-state")
+    assert is_list(types)
+    assert Enum.member?(types, TM.type_spec("received"))
+    assert Enum.member?(types, TM.type_spec("accepted")) 
+  end
+
+  test "Encode the open frame" do
     open_frame = %AmqpOne.Transport.Frame.Open{container_id: "Testing"}
     [bin, <<>>] = Transport.encode_frame(0, open_frame)
 

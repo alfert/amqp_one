@@ -105,6 +105,7 @@ defmodule AmqpOne.TypeManager do
     Agent.get(__MODULE__, fn(%__MODULE__{type_store: ts}) ->
       get_names(t)
       |> Enum.each(fn name -> true = :ets.insert(ts, {name, t}) end)
+      add_provides_types(t, ts)
     end)
   end
 
@@ -115,8 +116,15 @@ defmodule AmqpOne.TypeManager do
     end
   end
 
-  def function_name do
-
+  defp add_provides_types(%Type{provides: provides} = t, type_store) do
+    provides
+    |> Enum.each(fn(p) ->
+      case type_spec(p) do
+        nil -> true = :ets.insert(type_store, {p, [t]})
+        l when is_list(l) -> true = :ets.insert(type_store, {p, [t | l]})
+        %Type{} = t1 -> Logger.error "Type #{p} is already present ignoring"
+      end
+    end)
   end
 
   @doc """
