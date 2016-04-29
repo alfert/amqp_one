@@ -105,11 +105,17 @@ defmodule AmqpOne.Encoding do
   Returns the encodable type, i.e. wanders the paths of restricted types
   along
   """
+  @spec encoding_type(Type.t) :: Type.t
+  @spec encoding_type([Type.t]) :: [Type.t]
   def encoding_type(%Type{class: :restricted, choices: nil} = t) do
     t1 = TypeManager.type_spec(t.source)
     encoding_type(t1)
   end
   def encoding_type(%Type{} = t), do: t
+  def encoding_type(types) when is_list(types) do
+    types
+    |> Enum.map(fn t -> encoding_type(t) end)
+  end
 
   defp enc(encodings, width) do
     Enum.find(encodings, fn e -> e.width==width end)
@@ -425,8 +431,12 @@ defmodule AmqpOne.Encoding do
     # but with a potential constraint from the requires-attributes, defining
     # the set of allowed types. I am not sure, how a static pascal-like type
     # system should handle this, but in Elixir we do not have too many problems.
-    type = f.requires
-    |> Stream.map(fn t -> TypeManager.type_spec(t) |> encoding_type end)
+    # 1. Find all required types, might be nested due to provided types
+    all_types = f.requires
+    |> Enum.map(fn t -> TypeManager.type_spec(t) |> encoding_type end)
+    |> List.flatten
+    # 2. Find all types which have the correct constructure `con`
+    type = all_types
     |> Stream.map(fn t ->
       if Enum.find_value(t.encodings, nil, fn e -> e.code == con end) == nil,
       do: nil, else: t

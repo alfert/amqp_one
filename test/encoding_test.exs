@@ -162,7 +162,7 @@ defmodule AmqpOne.Test.Encoding do
     assert book_type() == TM.type_spec("example:book:list")
   end
 
-  test "Frame encoding" do
+  test "Transfer Frame encoding" do
     alias AmqpOne.Transport.Frame
     channel = :random.uniform(65636) -1
     # length = :random.uniform(50) - 1
@@ -205,7 +205,7 @@ defmodule AmqpOne.Test.Encoding do
     types = TM.type_spec("delivery-state")
     assert is_list(types)
     assert Enum.member?(types, TM.type_spec("received"))
-    assert Enum.member?(types, TM.type_spec("accepted")) 
+    assert Enum.member?(types, TM.type_spec("accepted"))
   end
 
   test "Encode the open frame" do
