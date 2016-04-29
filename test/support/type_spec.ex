@@ -28,5 +28,5 @@ defmodule AmqpOne.Test.TypeSpec do
   </t>
   """)
 
-  X.frame_structs
+  X.frame_structs("amqp-core-transport-v1.0-os.xml")
 end

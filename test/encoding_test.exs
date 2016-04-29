@@ -176,7 +176,7 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "Frame type specification" do
-    spec = XML.frame_spec()
+    spec = XML.frame_spec("amqp-core-transport-v1.0-os.xml")
     assert %{} = spec
     # Logger.debug "Spec is: #{inspect spec}"
     assert %Type{} = spec["begin"]
