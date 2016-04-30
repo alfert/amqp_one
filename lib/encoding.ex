@@ -367,7 +367,7 @@ defmodule AmqpOne.Encoding do
     Enum.reverse list
   end
 
-  def decode_map(value, 0), do: {%{}, value}
+  def decode_map(_value, 0), do: %{}
   def decode_map(value, count) do
     {map, <<>>} = 1..(div(count, 2)) |>
     Enum.reduce({%{}, value}, fn _, {map, bytes} ->

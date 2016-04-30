@@ -116,6 +116,19 @@ defmodule AmqpOne.Test.Encoding do
     end)
   end
 
+  test "decoder for lists" do
+    types = %{<<0x45>> => [],
+      <<0xc0, 4, 2, 0x53, 1, 0x53, 2>> => [1, 2]}
+    type = TM.type_spec "list"
+    types
+    |> Enum.each(fn {l, e} ->
+      assert type.class == :primitive
+      {encoded, <<>>} = Encoding.typed_decoder(l, type)
+      assert encoded == e
+    end)
+  end
+
+
   test "encoder for maps" do
     types = %{%{} => <<0xc1, 0, 0>>, %{1 => 2, 3=>4} =>
       <<0xc1, 8, 4, 0x53, 1, 0x53, 2, 0x53, 3, 0x53, 4>>}
@@ -124,6 +137,21 @@ defmodule AmqpOne.Test.Encoding do
       type = Encoding.type_of l
       assert type.class == :primitive
       encoded = Encoding.typed_encoder(l, type)
+      assert encoded == e
+    end)
+  end
+
+  test "decoder for maps" do
+    types = %{<<0xc1, 0, 0>> => %{},
+      <<0xc1, 8, 4, 0x53, 1, 0x53, 2, 0x53, 3, 0x53, 4>>
+       => %{1 => 2, 3=>4}
+    }
+    types
+    |> Map.to_list
+    |> Enum.each(fn {l, e} ->
+      type = TM.type_spec "map"
+      assert type.class == :primitive
+      {encoded, <<>>} = Encoding.typed_decoder(l, type)
       assert encoded == e
     end)
   end
@@ -209,7 +237,12 @@ defmodule AmqpOne.Test.Encoding do
   end
 
   test "Encode the open frame" do
-    open_frame = %AmqpOne.Transport.Frame.Open{container_id: "Testing"}
+    hostname = 'localhost'
+    open_frame = %AmqpOne.Transport.Frame.Open{container_id: "Testing",
+      hostname: "#{hostname}",
+      max_frame_size: 1024*1024, channel_max: nil,
+      idle_time_out: 5_000, properties: %{}
+    }
     [bin, <<>>] = Transport.encode_frame(0, open_frame)
 
     {0, {frame, ""}} = Transport.decode_frame(bin)
