@@ -240,7 +240,7 @@ defmodule AmqpOne.Test.Encoding do
     hostname = 'localhost'
     open_frame = %AmqpOne.Transport.Frame.Open{container_id: "Testing",
       hostname: "#{hostname}",
-      max_frame_size: 1024*1024, channel_max: nil,
+      max_frame_size: 1024*1024, channel_max: 10,
       idle_time_out: 5_000, properties: %{}
     }
     [bin, <<>>] = Transport.encode_frame(0, open_frame)

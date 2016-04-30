@@ -123,7 +123,7 @@ defmodule AmqpOne.Encoding do
 
   def primitive_encoder(value, type, in_array \\ false)
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
-        when name in ["ubyte", "ushort", "uint", "ulong"] do
+        when name in ["ubyte", "uint", "ulong"] do
     case value do
       0 when not in_array -> <<enc(t.encodings, 0).code>>
       x when x < 256 and not in_array ->
@@ -140,6 +140,14 @@ defmodule AmqpOne.Encoding do
           <<value :: size(s)>>
     end
   end
+  def primitive_encoder(value, %Type{class: :primitive, name: name} = t, false)
+        when name in ["ushort"] do
+    e = uncompressed_encoding(t)
+    s = e.width * 8
+    # Logger.debug "byte/short: e.code = #{e.code}, binary? #{is_binary(e.code)}"
+    e.code <> <<value :: size(s)-integer>>
+  end
+
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
         when name in [ "int", "long"] do
     case value do
