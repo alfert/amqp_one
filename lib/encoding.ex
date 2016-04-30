@@ -28,6 +28,7 @@ defmodule AmqpOne.Encoding do
   @spec typed_encoder(any, Type.t | Descriptor.t | Encoding.t | Field.t, boolean) :: iodata
   def typed_encoder(value, type, in_array \\ false)
   def typed_encoder(value, %Type{class: :primitive} = t, in_array) do
+    Logger.debug "call primitive_encoder() of value #{inspect value} and type #{inspect t}"
     primitive_encoder(value, t, in_array)
   end
   def typed_encoder(%{} = value, %Type{class: :composite} = t, in_array) do
@@ -50,7 +51,7 @@ defmodule AmqpOne.Encoding do
   end
   def typed_encoder(value, %Type{class: :restricted, choices: nil} = t, _in_array) do
     # no choices means no enumeration, but a subtype of an existing type
-    source_type = TypeManager.type_spec(t.source)
+    source_type = TypeManager.type_spec(t.source) |> encoding_type
     if t.descriptor == nil do
       [typed_encoder(value, source_type)]
     else
@@ -414,7 +415,7 @@ defmodule AmqpOne.Encoding do
     decode_bin(binary)
   end
   def typed_decoder(<<con, value_bin :: binary>>, %Type{class: :composite} = t) do
-    {_size, count, values} = case con do
+    {_size, count, value_string} = case con do
       0xc0 ->
         <<s, c, vs :: binary>> = value_bin
         {s, c, vs}
@@ -428,7 +429,7 @@ defmodule AmqpOne.Encoding do
     end
     t.fields
     |> Stream.take(count)
-    |> Enum.reduce({initial_value, values}, fn field, {map, bin} ->
+    |> Enum.reduce({initial_value, value_string}, fn field, {map, bin} ->
       {field_val, rest} = typed_decoder(bin, field)
       {Map.put(map, field.name, field_val), rest}
     end)
