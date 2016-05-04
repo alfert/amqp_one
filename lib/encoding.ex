@@ -214,18 +214,19 @@ defmodule AmqpOne.Encoding do
     end
   end
   def primitive_encoder(value, %Type{class: :primitive, name: "list"}, in_array) do
-    elems = value
+    Logger.debug "Encode a list: #{inspect value}"
+    enc_list = value
     |> Enum.map(&(typed_encoder(&1, type_of(&1), false)))
     |> IO.iodata_to_binary
-    size = byte_size(elems)
+    size = byte_size(enc_list)
     count = length(value)
     # put the list together
     case size do
       0 -> <<0x45>>
       x when x > 255 or in_array ->
-        if in_array, do: <<size :: size(32), count :: size(32)>> <> elems,
-          else: <<0xd0, size :: size(32), count :: size(32)>> <> elems
-      _x -> <<0xc0, size :: size(8), count :: size(8)>>  <> elems
+        if in_array, do: <<size :: size(32), count :: size(32)>> <> enc_list,
+      else: <<0xd0, size :: size(32), count :: size(32)>> <> enc_list
+      _x -> <<0xc0, size :: size(8), count :: size(8)>>  <> enc_list
     end
   end
   def primitive_encoder(value, %Type{class: :primitive, name: "map"}, in_array) do
