@@ -16,7 +16,7 @@ defmodule AmqpOne.Test.Quickcheck do
 
   @doc "Generator for simple, i.e. unstructed AMQP values"
   def simple_amqp_values do
-    oneof [nat, largeint, bool, real, atom] # utf8
+    oneof [nat, largeint, bool, real, atom, utf8]
   end
 
   @doc "Generator for a set of atoms"

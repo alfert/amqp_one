@@ -204,7 +204,7 @@ defmodule AmqpOne.Encoding do
     primitive_encoder(Atom.to_string(value), t, in_array)
   end
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
-      when name in ["symbol"] do # "string", "binary",
+      when name in ["string", "binary", "symbol"] do  
     Logger.debug("Encode <#{inspect value}> of type #{name}")
     case byte_size(value) do
       s when s < 255 and not in_array ->
