@@ -126,7 +126,7 @@ defmodule AmqpOne.Encoding do
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
         when name in ["ubyte", "uint", "ulong"] do
     case value do
-      0 when not in_array -> <<enc(t.encodings, 0).code>>
+      0 when not in_array -> enc(t.encodings, 0).code
       x when x < 256 and not in_array ->
         e = enc(t.encodings, 1)
         s = e.width * 8
