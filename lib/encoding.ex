@@ -269,6 +269,8 @@ defmodule AmqpOne.Encoding do
   def type_of(nil), do: TypeManager.type_spec("null")
   def type_of(b) when b in [true, false], do: TypeManager.type_spec("boolean")
   def type_of(a) when is_atom(a), do: TypeManager.type_spec("symbol")
+  def type_of(<<>>), do: TypeManager.type_spec("string")
+  def type_of(b) when is_binary(b), do: TypeManager.type_spec("binary")
   def type_of(l) when is_list(l), do: TypeManager.type_spec("list")
   def type_of(m) when is_map(m) do
     # and is a short-cut: returns false or the result of the 2nd argument
