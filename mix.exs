@@ -3,7 +3,8 @@ defmodule AmqpOne.Mixfile do
   defp aliases do
     [
       "do_release": ["release.clean", "compile", "release"],
-      "docs": ["docs", &copy_images/1]
+      "docs": ["docs", &copy_images/1],
+      "deps.get": [&unzip_eqc/1, "deps.get"]
     ]
   end
 
@@ -16,7 +17,7 @@ defmodule AmqpOne.Mixfile do
      start_permanent: Mix.env == :prod,
      test_coverage: [tool: Coverex.Task],
      aliases: aliases,
-      docs: [extras: ["README.md"], main: "README"],
+     docs: [extras: ["README.md"], main: "README"],
      deps: deps]
   end
 
@@ -38,6 +39,13 @@ defmodule AmqpOne.Mixfile do
     |> Enum.each(&(File.cp &1, "doc/" <> &1))
   end
 
+  @eqc_mini_version "2.01.0"
+  defp unzip_eqc(_args) do
+    filename = "beam_lib/eqcmini-" <> @eqc_mini_version <> ".zip" |> String.to_char_list
+    {:ok, _} = :zip.unzip(filename, cwd: 'beam_lib')
+  end
+
+
   # Dependencies can be Hex packages:
   #
   #   {:mydep, "~> 0.3.0"}
@@ -54,7 +62,9 @@ defmodule AmqpOne.Mixfile do
       {:ex_doc, "~>0.8", only: :dev},
       {:earmark, ">= 0.0.0", only: :dev},
       {:credo, "~> 0.3.0", only: :dev},
-      {:coverex, "~> 1.4.8", only: :test}
+      {:coverex, "~> 1.0", only: :test},
+      {:eqc_ex, "~> 1.2", only: :test},
+      {:eqc, path: "beam_lib/eqcmini-2/eqc-" <> @eqc_mini_version, compile: false, only: :test}
     ]
   end
 end
