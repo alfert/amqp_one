@@ -200,7 +200,12 @@ defmodule AmqpOne.Encoding do
     if in_array, do: <<value :: size(64)>>, else: <<0x83, value :: size(64)>>
   end
   def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
-      when name in ["string", "binary", "symbol"] do
+      when name in ["string", "binary", "symbol"] and is_atom(value) do
+    primitive_encoder(Atom.to_string(value), t, in_array)
+  end
+  def primitive_encoder(value, %Type{class: :primitive, name: name} = t, in_array)
+      when name in ["symbol"] do # "string", "binary",
+    Logger.debug("Encode <#{inspect value}> of type #{name}")
     case byte_size(value) do
       s when s < 255 and not in_array ->
         e = enc(t.encodings, 1)
@@ -340,9 +345,12 @@ defmodule AmqpOne.Encoding do
   # an utf8 encoded string, it's size is in bytes, not in graphemes, so it is essentially a simple binary
   def decode_bin(<<0xa1>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
   def decode_bin(<<0xb1>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
-  # symbols
-  def decode_bin(<<0xa3>>, <<size :: integer, val :: binary-size(size), rest :: binary>>), do: {val, rest}
-  def decode_bin(<<0xb3>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>), do: {val, rest}
+  # symbols: We expect that all symbols already exist, otherweise a crash occurs
+  # this is due to safety reasons, the symbols cannot fill up the atom storage infinitely
+  def decode_bin(<<0xa3>>, <<size :: integer, val :: binary-size(size), rest :: binary>>),
+    do: {val |> String.to_existing_atom, rest}
+  def decode_bin(<<0xb3>>, <<size :: integer-size(32), val :: binary-size(size), rest :: binary>>),
+    do: {val |> String.to_existing_atom, rest}
   # lists
   def decode_bin(<<0x45>>, rest), do: {[], rest}
   def decode_bin(<<0xc0>>, <<size :: integer, count :: integer, val :: binary-size(size), rest :: binary>>),
