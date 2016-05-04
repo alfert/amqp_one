@@ -4,3 +4,6 @@
 erl_crash.dump
 *.ez
 /doc
+/beam_lib/eqcmini-2
+.eqc-info
+*.eqc
