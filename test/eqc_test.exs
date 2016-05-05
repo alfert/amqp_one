@@ -9,17 +9,17 @@ defmodule AmqpOne.Test.Quickcheck do
     list_type = TypeManager.type_spec "list"
     forall l <- list(simple_amqp_values) do
       {decoded, <<>>} = Encoding.typed_encoder(l, list_type) |> Encoding.decode_bin
-      collect l: l, in:
+      # collect l: l, in:
         ensure l == decoded
     end
   end
 
   property "encode and decode arrays" do
     array_type = TypeManager.type_spec "array"
-    forall t <- simple_amqp_values do
+    forall {t, n} <- {simple_amqp_values, nat} do
       forall a <- vector(10, t) do
         {decoded, <<>>} = Encoding.typed_encoder(a, array_type) |> Encoding.decode_bin
-        collect a: a, in:
+        # collect n: n, in:
           ensure a == decoded
       end
     end
@@ -27,7 +27,7 @@ defmodule AmqpOne.Test.Quickcheck do
 
   @doc "Generator for simple, i.e. unstructed AMQP values"
   def simple_amqp_values do
-    oneof [nat, largeint, bool, real, atom, utf8]
+    oneof [int, largeint, bool, real, atom, utf8]
   end
 
   @doc "Generator for a set of atoms"
